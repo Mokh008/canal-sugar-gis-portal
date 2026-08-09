@@ -1,0 +1,322 @@
+/* =====================================================================
+   MK NEXUS — Design Token System
+   Source: official mood board (docked-satellite / mission-control /
+   automotive-interior identity). Values below were sampled directly
+   from the reference image, not estimated — see inline notes.
+
+   Load this file BEFORE style.css and any modules/*.css — every other
+   stylesheet consumes these variables and must never hardcode a color,
+   radius, blur, or shadow value.
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------------------------------------------------------------
+     SURFACES — layered dark-glass depth, from true black up to card
+  --------------------------------------------------------------- */
+  --surface-void: #020d0c;         /* true background — corners of the board */
+  --surface-panel: #051f19;        /* primary panel / section background */
+  --surface-panel-raised: #0e2e22; /* card background */
+  --surface-panel-alt: #133e33;    /* brighter card / active state */
+  --surface-glass: rgba(9, 33, 27, 0.72);
+  --surface-glass-strong: rgba(9, 33, 27, 0.88);
+
+  /* ---------------------------------------------------------------
+     METAL — brushed steel / titanium, for identity plates & chrome
+     hardware (loader ring housing, header trim, card edges)
+  --------------------------------------------------------------- */
+  --metal-highlight: #b7bcbd;
+  --metal-mid: #7c8283;
+  --metal-shadow: #414442;
+  --metal-gradient: linear-gradient(155deg, var(--metal-highlight) 0%, var(--metal-mid) 45%, var(--metal-shadow) 100%);
+
+  /* ---------------------------------------------------------------
+     GOLD / CHAMPAGNE — the one warm accent in the identity; reserve
+     for the wordmark, premium labels, and KPI hero numbers ONLY.
+     Never use for interactive states — that's accent-green's job.
+  --------------------------------------------------------------- */
+  --gold: #c3af8e;
+  --gold-soft: rgba(195, 175, 142, 0.14);
+
+  /* ---------------------------------------------------------------
+     ACCENT — petroleum/emerald hologram glow, tiered by intensity.
+     accent-core is the hot near-white center of a glow and should
+     appear only at small radii (icon glyphs, ring tips) — using it
+     as a fill anywhere large reads as "bright UI teal", not "glow".
+  --------------------------------------------------------------- */
+  --accent-dim: #1c6b53;
+  --accent: #3a9678;
+  --accent-hover: #52c99b;
+  --accent-core: #cefeee;
+  --accent-soft: rgba(58, 150, 120, 0.16);
+  --accent-hover-soft: rgba(82, 201, 155, 0.16);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  --glow: rgba(58, 150, 120, 0.32);
+  --glow-core: rgba(206, 254, 238, 0.55);
+  /* Raw channel triplets — lets call sites build their own rgba(var(--accent-rgb), N)
+     instead of hand-typing "rgba(58, 150, 120, ...)"/"rgba(82, 201, 155, ...)"
+     independently (15+ call sites used to do exactly that, silently drifting
+     out of sync with the hex values above whenever the accent was retuned). */
+  --accent-rgb: 58, 150, 120;
+  --accent-hover-rgb: 82, 201, 155;
+
+  /* ---------------------------------------------------------------
+     SEMANTIC STATUS COLORS — success/warning/info/danger. Previously
+     undeclared: danger was hand-typed as #e07a6a independently in 6+
+     files (shell.css, login.css, module CSS), and there was no
+     warning/info token at all. `--gold`/`--harvest-gold` stay reserved
+     for labels/illustration per the notes above — these are new,
+     dedicated hues so that rule doesn't get bent for status UI.
+  --------------------------------------------------------------- */
+  --success: var(--accent-hover);
+  --success-soft: var(--accent-soft);
+  --warning: #e0a13a;
+  --warning-soft: rgba(224, 161, 58, 0.14);
+  --info: #6fa8dc;
+  --info-soft: rgba(111, 168, 220, 0.14);
+  --danger: #e07a6a;
+  --danger-soft: rgba(224, 122, 106, 0.14);
+  --danger-strong: rgba(224, 122, 106, 0.32);
+  --danger-text: #f2a99a;
+
+  /* ---------------------------------------------------------------
+     MATERIALS — leather & carbon fiber, for texture backgrounds
+     (see background.css) — sampled flat tones, patterns layered on top
+  --------------------------------------------------------------- */
+  --material-leather: #161a1b;
+  --material-carbon: #22282a;
+
+  /* ---------------------------------------------------------------
+     HARVEST — sugar beet field & golden-hour tones. Used exclusively
+     by the `.mk-field` aerial crop-row illustration (background.css)
+     that backs the login screen and landing page — never in UI chrome,
+     so it can't drift the core emerald/gold identity above.
+  --------------------------------------------------------------- */
+  --field-deep: #06201a;             /* row shadow / soil-in-shade */
+  --field-leaf: #2f8f5c;             /* canopy dot, base tone */
+  --field-leaf-bright: #7fe0ab;      /* canopy dot, lit edge */
+  --harvest-gold: #e3b567;           /* ripe/harvested-zone marker, horizon glow */
+  --harvest-gold-soft: rgba(227, 181, 103, 0.16);
+
+  /* ---------------------------------------------------------------
+     MODULE IDENTITY — each module's subtle accent shift, used ONLY
+     for its own eyebrow text, KPI icon tint, and card top-accent —
+     never for interactive control colors (buttons/inputs/focus rings
+     stay the platform-wide accent everywhere, per the button-system
+     rule: one consistent button language across every module). Geo
+     Intelligence is the flagship module and keeps the core emerald
+     identity; Attendance reuses the existing gold/champagne token
+     (a "premium label" use, exactly what gold is reserved for above);
+     Rent and Expenses get two new, dedicated hues so all four modules
+     read as visually distinct at a glance.
+  --------------------------------------------------------------- */
+  --module-geo: var(--accent-hover);
+  --module-geo-soft: var(--accent-soft);
+  --module-attendance: var(--gold);
+  --module-attendance-soft: var(--gold-soft);
+  --module-rent: #c98a5e;
+  --module-rent-soft: rgba(201, 138, 94, 0.14);
+  --module-expenses: #8b93e8;
+  --module-expenses-soft: rgba(139, 147, 232, 0.14);
+
+  /* ---------------------------------------------------------------
+     TEXT
+  --------------------------------------------------------------- */
+  --text-primary: #f1f5f3;
+  --text-secondary: #b9c9c2;
+  --text-muted: #86988f;
+
+  /* ---------------------------------------------------------------
+     LINES
+  --------------------------------------------------------------- */
+  --line-soft: rgba(120, 180, 155, 0.14);
+  --line-strong: rgba(150, 200, 175, 0.24);
+
+  /* ---------------------------------------------------------------
+     TYPOGRAPHY
+  --------------------------------------------------------------- */
+  /* core/config.js's applyTheme() overwrites this at runtime to the active
+     THEME.typography.titleFont (Space Grotesk) — matched here so the static
+     fallback is a font that's actually loaded (index.html never loads
+     Poppins), not a silently-broken reference. */
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-title: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-placeholder: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-base: 15px;
+  --font-weight-base: 500;
+  --text-transform-global: none;
+  --font-variant-global: normal;
+  --panel-radius: 24px;
+  --panel-border: 1px solid rgba(255,255,255,0.08);
+  --panel-bg: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  --panel-shadow: 0 30px 90px rgba(0,0,0,0.35);
+  --panel-blur: 28px;
+  --panel-glow: 0 0 20px rgba(58,150,120,0.12);
+  --button-radius: 16px;
+  --button-bg: rgba(255,255,255,0.06);
+  --button-hover-bg: rgba(82,201,155,0.14);
+  --button-pressed-bg: rgba(255,255,255,0.08);
+  --button-shadow: 0 18px 34px rgba(0,0,0,0.2);
+  --legend-border: 1px solid rgba(255,255,255,0.1);
+  --legend-gap: 10px;
+  --minimap-bg: rgba(7,23,19,0.7);
+  --minimap-border: 1px solid rgba(255,255,255,0.08);
+  --minimap-radius: 22px;
+  --minimap-opacity: 0.96;
+  --sidebar-width: clamp(240px, 17vw, 296px);
+  --geo-right-rail: clamp(300px, 22vw, 360px);
+  --geo-kpi-width: min(360px, 28vw);
+  --layout-padding: 24px;
+  --layout-gap: 20px;
+  --layout-margin: 24px;
+  --card-gap: 14px;
+  --card-radius: 20px;
+  --card-border: 1px solid rgba(255,255,255,0.08);
+  --card-bg: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+  --card-shadow: 0 18px 34px rgba(0,0,0,0.2);
+  --card-hover-shadow: 0 22px 44px rgba(0,0,0,0.25);
+  --card-hover-transform: translateY(-3px);
+  --font-weight-global: 600;
+  --font-letter-spacing: 0em;
+  --font-line-height: 1.3;
+/* ---------------------------------------------------------------
+     TYPE SCALE — sizes, weights, line-height, letter-spacing.
+     Consumed by typography.css utility classes. Never hardcode a
+     font-size/weight/tracking value outside this block.
+  --------------------------------------------------------------- */
+  --fs-display: clamp(56px, 9vw, 128px);
+  --fs-h1: clamp(38px, 5vw, 64px);
+  --fs-h2: clamp(28px, 3.4vw, 40px);
+  --fs-h3: 24px;
+  --fs-h4: 18px;
+  --fs-body-lg: 17px;
+  --fs-body: 15px;
+  --fs-body-sm: 13px;
+  --fs-caption: 11.5px;
+  --fs-mono-lg: 15px;
+  --fs-mono: 12px;
+  --fs-mono-sm: 10.5px;
+  --fs-kpi: clamp(32px, 4vw, 56px);
+  --fs-kpi-sm: clamp(22px, 2.6vw, 32px);
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.25;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.7;
+
+  --ls-tight: -0.01em;
+  --ls-normal: 0em;
+  --ls-wide: 0.06em;
+  --ls-wider: 0.12em;
+  --ls-widest: 0.2em;
+
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+  /* ---------------------------------------------------------------
+     SPACING SCALE
+  --------------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---------------------------------------------------------------
+     RADIUS
+  --------------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* ---------------------------------------------------------------
+     BLUR (glass)
+  --------------------------------------------------------------- */
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 28px;
+
+  /* ---------------------------------------------------------------
+     LAYOUT
+  --------------------------------------------------------------- */
+  --header-height: 84px;
+
+  /* ---------------------------------------------------------------
+     MOTION
+  --------------------------------------------------------------- */
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 0.2s;
+  --duration-base: 0.6s;
+  --duration-slow: 0.7s;
+
+  /* ---------------------------------------------------------------
+     SHADOWS
+  --------------------------------------------------------------- */
+  --shadow-glow: 0 0 40px var(--glow);
+  --shadow-glow-core: 0 0 12px var(--glow-core);
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-metal: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* ---------------------------------------------------------------
+     Z-INDEX SCALE — every stacking layer in the app in one ordered
+     list. `--z-overlay` was previously shared by mobile sidebar,
+     header dropdowns, and modals alike (a real collision — a header
+     dropdown could render *beneath* the mobile sidebar). Dropdowns,
+     modals, and toasts now each get their own tier above it.
+  --------------------------------------------------------------- */
+  --z-base: 1;
+  --z-panel: 10;
+  --z-header: 100;
+  --z-overlay: 500;   /* mobile sidebar + its backdrop */
+  --z-dropdown: 520;  /* header notification/profile panels */
+  --z-modal: 900;     /* login screen, GIS entity-selector modal */
+  --z-loading: 1000;  /* boot loading screen */
+  --z-toast: 1100;    /* toast notification stack — always on top */
+}
+
+/* ---------------------------------------------------------------
+   LIGHT THEME — toggled by the shell header's sun/moon button
+   (core/ui/header.js adds/removes `theme-light` on <body>; only
+   exists inside the app shell, so login/landing stay the fixed dark
+   "hero" experience they're designed as regardless of this toggle).
+
+   Redeclares the surface/text/line tokens every shell/geo-experience
+   stylesheet already consumes via var(--...) — that's most of the UI.
+   Left alone on purpose: a handful of *hardcoded* rgba(255,255,255,…)
+   "glass sheen" highlights in overrides.css/geo-experience.css (tuned
+   as a bright edge against a dark base) — on light surfaces they just
+   read as a fainter highlight, not broken or illegible, so rescoping
+   every one of them wasn't worth doing in the same pass as this fix.
+--------------------------------------------------------------- */
+body.theme-light {
+  --surface-void: #f3f7f5;
+  --surface-panel: #ffffff;
+  --surface-panel-raised: #eef4f1;
+  --surface-panel-alt: #e3ece7;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-strong: rgba(255, 255, 255, 0.88);
+
+  --text-primary: #0b201a;
+  --text-secondary: #3c5850;
+  --text-muted: #6d8880;
+
+  --line-soft: rgba(11, 32, 26, 0.1);
+  --line-strong: rgba(11, 32, 26, 0.2);
+
+  --metal-highlight: #ffffff;
+  --metal-mid: #c7cccb;
+  --metal-shadow: #8d9291;
+
+  --material-leather: #eceeee;
+  --material-carbon: #dde1e1;
+}

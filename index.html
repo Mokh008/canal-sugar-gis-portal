@@ -1,1 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MK Nexus | Sugar Beet Geo Intelligence &amp; Harvest Platform</title>
+  <meta name="description" content="MK Nexus — Canal Sugar's Geo Intelligence platform for sugar beet cultivation, harvest tracking, and field operations.">
 
+  <!-- Google Fonts: premium dashboard font system -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Exo+2:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Stylesheets: tokens and background load first — every other
+       stylesheet consumes their variables and shared surface classes.
+       MapLibre GL JS v5 (Globe projection) — pinned to the v5 line via
+       jsdelivr's semver-range path rather than a guessed exact patch
+       version, since this environment can't verify one against the
+       registry. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="assets/css/tokens.css?v=3">
+  <link rel="stylesheet" href="assets/css/background.css">
+  <link rel="stylesheet" href="assets/css/shell.css?v=2">
+  <link rel="stylesheet" href="assets/css/geo-module.css?v=8">
+  <link rel="stylesheet" href="assets/css/geo-experience.css?v=9">
+  <link rel="stylesheet" href="assets/css/style.css?v=5">
+  <link rel="stylesheet" href="assets/css/login.css?v=2">
+  <link rel="stylesheet" href="assets/css/rent-module.css?v=4">
+  <link rel="stylesheet" href="assets/css/expenses-module.css?v=3">
+  <link rel="stylesheet" href="assets/css/attendance-module.css?v=2">
+  <!-- overrides.css removed: its ~18 hardcoded-color patch rules were
+       folded back into tokens.css/shell.css/style.css using design
+       tokens (see those files' history) — nothing here needs a
+       cascade-order "patch" layer anymore. -->
+  <!-- Favicon (logo mark) -->
+</head>
+<body>
+
+  <!-- =========================================================
+       LOADING SCREEN
+       Full-screen boot sequence shown before the landing page.
+       Removed from the DOM flow (aria-hidden) once complete.
+  ========================================================== -->
+  <div id="loading-screen" class="loading-screen" role="status" aria-live="polite">
+    <div class="loading-screen__grid" aria-hidden="true"></div>
+
+    <div class="loading-screen__content">
+      <div class="loading-screen__logo-wrap">
+        <span class="loading-screen__logo" id="loaderLogo" aria-hidden="true">MK</span>
+        <svg class="loading-screen__ring" viewBox="0 0 140 140" aria-hidden="true">
+          <circle cx="70" cy="70" r="64" class="loading-screen__ring-track"/>
+          <circle cx="70" cy="70" r="64" class="loading-screen__ring-progress" id="loaderRing"/>
+        </svg>
+      </div>
+
+      <div class="loading-screen__wordmark">
+        <span class="loading-screen__wordmark-mk">MK</span><span class="loading-screen__wordmark-nexus">NEXUS</span>
+      </div>
+
+      <div class="loading-screen__console">
+        <p class="loading-screen__console-line" id="consoleLine">BOOTING SYSTEM…</p>
+      </div>
+
+      <div class="loading-screen__bar-track">
+        <div class="loading-screen__bar-fill" id="loaderBarFill"></div>
+      </div>
+
+      <div class="loading-screen__percent" id="loaderPercent">0%</div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       LOGIN
+       Authentication gate shown after the boot sequence, before the
+       landing page. Backed by the real API (MKNexus.ApiClient.login,
+       action 'login' in api/config.js) via core/ui/login.js.
+  ========================================================== -->
+  <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-label="Sign in" aria-hidden="true">
+    <div class="login-screen__backdrop login-screen__backdrop--photo mk-surface" aria-hidden="true">
+      <div class="mk-field">
+        <div class="mk-field__horizon"></div>
+        <div class="mk-field__sweep"></div>
+        <div class="mk-field__particle mk-field__particle--1"></div>
+        <div class="mk-field__particle mk-field__particle--2"></div>
+        <div class="mk-field__particle mk-field__particle--3"></div>
+        <div class="mk-field__particle mk-field__particle--4"></div>
+        <div class="mk-field__particle mk-field__particle--5"></div>
+      </div>
+      <div class="mk-glow mk-glow--primary login-screen__glow-a"></div>
+      <div class="mk-glow login-screen__glow-b"></div>
+    </div>
+
+    <div class="login-screen__stats" aria-hidden="true">
+      <div class="login-stat login-stat--1">
+        <i class="fa-solid fa-seedling"></i>
+        <div><span class="login-stat__value">18,400</span><span class="login-stat__label">Hectares monitored</span></div>
+      </div>
+      <div class="login-stat login-stat--2">
+        <i class="fa-solid fa-wheat-awn"></i>
+        <div><span class="login-stat__value">Live</span><span class="login-stat__label">Harvest sync</span></div>
+      </div>
+      <div class="login-stat login-stat--3">
+        <i class="fa-solid fa-truck-ramp-box"></i>
+        <div><span class="login-stat__value">42</span><span class="login-stat__label">Villages connected</span></div>
+      </div>
+    </div>
+
+    <div class="login-screen__panel">
+      <div class="login-card">
+        <div class="login-card__brand">
+          <span class="login-card__brand-mark"><i class="fa-solid fa-leaf"></i></span>
+          <span class="login-card__brand-name">MK&nbsp;NEXUS</span>
+        </div>
+
+        <h1 class="login-card__title">Welcome back</h1>
+        <p class="login-card__subtitle">Sign in to Canal Sugar's Geo Intelligence platform for sugar beet cultivation and harvest operations.</p>
+
+        <div class="login-card__error" id="loginError" role="alert"></div>
+
+        <form id="loginForm" class="login-form" novalidate>
+          <div class="login-field">
+            <input type="text" id="loginUsername" name="username" class="login-field__input" placeholder=" " autocomplete="username" required>
+            <label for="loginUsername" class="login-field__label">Username or email</label>
+            <i class="fa-regular fa-user login-field__icon"></i>
+          </div>
+
+          <div class="login-field">
+            <input type="password" id="loginPassword" name="password" class="login-field__input" placeholder=" " autocomplete="current-password" required>
+            <label for="loginPassword" class="login-field__label">Password</label>
+            <i class="fa-solid fa-lock login-field__icon"></i>
+            <button type="button" class="login-field__toggle" id="loginPasswordToggle" aria-label="Show password">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="login-form__row">
+            <label class="login-checkbox">
+              <input type="checkbox" id="loginRemember">
+              <span class="login-checkbox__box"><i class="fa-solid fa-check"></i></span>
+              <span>Remember me</span>
+            </label>
+            <a href="#" class="login-form__forgot">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="btn btn--primary login-form__submit" id="loginSubmit">
+            <span class="login-form__submit-label">Sign In</span>
+            <i class="fa-solid fa-arrow-right"></i>
+            <span class="login-form__spinner" aria-hidden="true"></span>
+          </button>
+
+          <button type="button" class="login-form__demo" id="loginDemoBtn" hidden>
+            <i class="fa-solid fa-bolt"></i>
+            <span>Backend unreachable &mdash; continue in demo mode</span>
+          </button>
+        </form>
+
+        <div class="login-card__footer">
+          <i class="fa-solid fa-lock"></i>
+          <span>Secured access &middot; Canal Sugar Operations Network</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-screen__corner-brand">
+      <span>CANAL SUGAR</span><span class="login-screen__corner-brand-sep">/</span><span>MK NEXUS CORE</span>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       LANDING PAGE
+  ========================================================== -->
+  <main id="landing" class="landing" aria-hidden="true">
+
+    <!-- Ambient background layers -->
+    <div class="landing__backdrop landing__backdrop--photo mk-surface" aria-hidden="true">
+      <svg class="landing__contours" id="contourSvg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <path class="contour-path" d="M -100,650 C 200,600 350,720 600,660 C 850,600 1000,700 1300,640 C 1500,600 1650,650 1800,610" />
+        <path class="contour-path" d="M -100,720 C 250,660 420,780 680,730 C 900,690 1080,760 1350,700 C 1520,660 1650,700 1800,680" />
+        <path class="contour-path" d="M -100,540 C 180,500 380,600 620,560 C 880,520 1050,590 1320,540 C 1500,510 1650,540 1800,520" />
+        <path class="contour-path" d="M -100,800 C 220,760 460,850 700,810 C 950,770 1120,830 1380,790 C 1540,765 1650,790 1800,775" />
+      </svg>
+      <div class="landing__grid-plane" aria-hidden="true"></div>
+      <div class="landing__glow landing__glow--emerald"></div>
+      <div class="landing__glow landing__glow--teal"></div>
+    </div>
+
+    <!-- Top bar -->
+    <header class="landing__topbar">
+      <div class="landing__brand">
+  <span class="landing__brand-name">MK&nbsp;NEXUS</span>
+      </div>
+
+      <div class="landing__status">
+        <span class="landing__status-dot"></span>
+        <span class="landing__status-text">SYSTEM ONLINE</span>
+        <span class="landing__status-divider">|</span>
+        <span class="landing__status-coords" id="coordReadout">30.0444&deg; N, 31.2357&deg; E</span>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="landing__hero">
+      <div class="landing__eyebrow" data-anim="hero-eyebrow">
+        <i class="fa-solid fa-seedling"></i>
+        <span>PRECISION SUGAR BEET INTELLIGENCE</span>
+      </div>
+
+      <h1 class="landing__title" data-anim="hero-title">
+        <span class="landing__title-line">MK</span>
+        <span class="landing__title-line landing__title-line--accent">NEXUS</span>
+      </h1>
+
+      <p class="landing__subtitle" data-anim="hero-subtitle">Geo Intelligence for Sugar Beet Cultivation &amp; Harvest</p>
+
+      <p class="landing__description" data-anim="hero-desc">
+        A unified command center for satellite field mapping, harvest tracking, and
+        supply-chain intelligence &mdash; built for Canal Sugar's sugar beet growers and
+        factory operations network.
+      </p>
+
+      <div class="landing__cta-row" data-anim="hero-cta">
+        <button class="btn btn--primary" id="launchBtn" type="button">
+          <span>Launch Platform</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+        <button class="btn btn--ghost" id="learnBtn" type="button">
+          <i class="fa-regular fa-circle-play"></i>
+          <span>See how it works</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing__footer">
+      <span>Built for Canal Sugar &middot; Sugar Beet Cultivation &amp; Harvest Intelligence</span>
+      <span class="landing__footer-version">v1.0.0 &mdash; MK NEXUS CORE</span>
+    </footer>
+  </main>
+
+  <!-- =========================================================
+       APPLICATION SHELL
+       Persistent chrome (sidebar + header). Hidden until the
+       landing page's Launch button calls MKNexus.enterShell().
+       Content area is populated by core/router.js per module.
+  ========================================================== -->
+  <div id="app-shell" class="app-shell">
+    <div class="app-shell__body">
+
+      <!-- Sidebar -->
+      <aside id="shellSidebar" class="shell-sidebar">
+        <div class="shell-sidebar__brand">
+          <span class="shell-sidebar__brand-name">MK&nbsp;NEXUS</span>
+        </div>
+
+        <nav id="shellSidebarNav" class="shell-sidebar__nav" aria-label="Main navigation">
+          <!-- Nav items injected by ui/shell.js from the MODULES registry -->
+        </nav>
+
+        <div class="shell-sidebar__footer">
+          <button id="shellCollapseBtn" class="shell-collapse-btn" type="button" aria-label="Collapse sidebar">
+            <i class="fa-solid fa-angles-left"></i>
+            <span class="shell-nav-item__label">Collapse</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Mobile-only scrim behind the sidebar when expanded — click to
+           dismiss, same affordance every header dropdown already has. -->
+      <div id="shellSidebarBackdrop" class="shell-sidebar-backdrop" aria-hidden="true"></div>
+
+      <!-- Main column: header + content -->
+      <div class="shell-main">
+        <header id="shellHeader" class="shell-header">
+          <div class="shell-breadcrumb">
+            <span class="shell-breadcrumb__company" id="shellBreadcrumbCompany">Canal Sugar</span>
+            <span class="shell-breadcrumb__sep">/</span>
+            <span class="shell-breadcrumb__current" id="shellBreadcrumbCurrent">Dashboard</span>
+          </div>
+
+          <div class="shell-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="shellSearchInput" placeholder="Search farmers, villages, vehicles…" aria-label="Search">
+          </div>
+
+          <div class="shell-header__actions">
+            <button id="shellHomeBtn" class="shell-icon-btn" type="button" aria-label="Back to home" title="Back to home">
+              <i class="fa-solid fa-house"></i>
+            </button>
+
+            <button id="shellThemeBtn" class="shell-icon-btn" type="button" aria-label="Toggle theme">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <div class="shell-notif">
+              <button id="shellNotifBtn" class="shell-icon-btn" type="button" aria-label="Notifications">
+                <i class="fa-regular fa-bell"></i>
+                <span id="shellNotifBadge" class="shell-notif__badge is-hidden">0</span>
+              </button>
+              <div id="shellNotifPanel" class="shell-notif__panel">
+                <div class="shell-notif__header">Notifications</div>
+                <ul id="shellNotifList" class="shell-notif__list"></ul>
+              </div>
+            </div>
+
+            <div class="shell-profile">
+              <button id="shellProfileBtn" class="shell-profile__trigger" type="button" aria-label="Profile menu">
+                <span id="shellProfileInitials" class="shell-profile__avatar"></span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div id="shellProfilePanel" class="shell-profile__panel">
+                <div class="shell-profile__info">
+                  <span id="shellProfileName" class="shell-profile__name"></span>
+                  <span id="shellProfileRole" class="shell-profile__role"></span>
+                </div>
+                <button class="shell-profile__menu-item" type="button" disabled title="Settings — coming soon">
+                  <i class="fa-solid fa-gear"></i><span>Settings</span><span class="shell-profile__menu-item__soon">Soon</span>
+                </button>
+                <button id="shellLogoutBtn" class="shell-profile__menu-item shell-profile__menu-item--danger" type="button">
+                  <i class="fa-solid fa-right-from-bracket"></i><span>Log out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div id="shellContent" class="shell-content">
+          <!-- Active module mounts here via core/router.js -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+
+<!-- Config / Router / Shell -->
+  <script src="assets/js/api/config.js?v=4"></script>
+  <script src="assets/js/api/client.js?v=5"></script>
+  <script src="assets/js/core/config.js?v=6"></script>
+  <script src="assets/js/core/utils.js?v=1"></script>
+  <script src="assets/js/core/ui/toast.js?v=1"></script>
+  <script src="assets/js/core/router.js"></script>
+  <script src="assets/js/core/data/session-data.js"></script>
+  <script src="assets/js/core/data/boundaries.js?v=5"></script>
+  <script src="assets/js/core/data/kpi-store.js?v=5"></script>
+  <script src="assets/js/core/ui/sidebar.js?v=2"></script>
+  <script src="assets/js/core/ui/header.js?v=2"></script>
+  <script src="assets/js/core/ui/login.js"></script>
+
+  <!-- Geo Intelligence / Map Engine — MapLibre GL JS v5 (Globe projection) -->
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
+  <script src="assets/js/map/map.js?v=8"></script>
+  <script src="assets/js/map/animation-ticker.js?v=1"></script>
+  <script src="assets/js/map/geo-state.js?v=2"></script>
+  <script src="assets/js/map/camera.js?v=6"></script>
+  <script src="assets/js/map/layers.js?v=12"></script>
+  <script src="assets/js/map/animation.js?v=7"></script>
+  <script src="assets/js/core/ui/gis-editor-ui.js?v=7"></script>
+  <script src="assets/js/map/editor.js?v=8"></script>
+  <script src="assets/js/map/geo-module.js?v=13"></script>
+
+  <!-- Rent module — talks to its own two pre-existing Apps Script backends
+       (api/rent-config.js), independent of the Geo Intelligence backend.
+       XLSX is only used for the admin Report view's Excel export. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="assets/js/api/rent-config.js?v=1"></script>
+  <script src="assets/js/api/rent-client.js?v=4"></script>
+  <script src="assets/js/modules/rent.js?v=6"></script>
+
+  <!-- Expenses module — its own single Apps Script backend
+       (api/expenses-config.js), independent of Geo and Rent. -->
+  <script src="assets/js/api/expenses-config.js"></script>
+  <script src="assets/js/api/expenses-client.js?v=3"></script>
+  <script src="assets/js/modules/expenses.js?v=5"></script>
+
+  <!-- Attendance module — its own single Apps Script backend
+       (api/attendance-config.js), independent of Geo/Rent/Expenses. -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="assets/js/api/attendance-config.js"></script>
+  <script src="assets/js/api/attendance-client.js?v=2"></script>
+  <script src="assets/js/modules/attendance.js?v=2"></script>
+
+  <script src="assets/js/core/ui/shell.js?v=3"></script>
+
+  <!-- App -->
+  <script src="assets/js/app.js?v=5"></script>
+</body>
+</html>

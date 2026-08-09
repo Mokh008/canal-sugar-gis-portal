@@ -1,0 +1,599 @@
+/* =====================================================================
+   MK NEXUS — Geo Experience
+   The executive presentation surface for the Geo Intelligence module:
+   command deck, KPI cards, legend, minimap, command actions, map status,
+   and presentation mode. This is the ONLY stylesheet for that surface —
+   it replaces the old geo-module.css/overrides.css split (a base layer
+   plus a second file that silently re-declared half of it to override
+   it). geo-module.css now only holds the GIS Editor tool chrome and the
+   bare map scaffold; nothing here duplicates anything there.
+
+   Everything below consumes tokens.css custom properties — no hardcoded
+   color/radius/blur/shadow values — so the app's theme (or Config.js's
+   THEME object, which writes these same custom properties at runtime)
+   is still the single place controlling the look.
+   ===================================================================== */
+
+/* ---- Vignette (cinematic edge falloff over the map canvas) ------------
+   Sits above the map canvas (z-index 2 > .geo-module__map's 1) on purpose
+   — it's a frame, not a filter — so it must stay light. The previous
+   version ran a directional wash up to 0.72 black across the right two
+   thirds of the screen, which is roughly where the camera centers a
+   selection (it offsets right to clear the KPI deck on the left) — so any
+   boundary glow rendered there was being crushed dark by this overlay
+   regardless of how bright the line layers themselves were. Edges only,
+   capped well below anything that could visibly dull a glow in the
+   content area. */
+.geo-module__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 48%, transparent 42%, rgba(2, 10, 9, 0.12) 80%, rgba(2, 10, 9, 0.3) 100%);
+}
+
+/* ---- Command deck ------------------------------------------------------ */
+.geo-command-deck {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  z-index: 4;
+  width: min(560px, calc(100% - var(--geo-kpi-width) - 44px));
+  max-height: calc(100% - 72px);
+  overflow: auto;
+  padding: var(--layout-padding);
+  border-radius: var(--card-radius);
+  border: var(--panel-border);
+  /* Was the fully-opaque --surface-panel, which made backdrop-filter's
+     blur below pointless (nothing showed through to blur). Glass over
+     the live satellite map, not a flat card. */
+  background: var(--surface-glass-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), var(--panel-shadow);
+  backdrop-filter: blur(var(--panel-blur));
+  animation: deck-arrive 0.8s var(--ease-premium) both;
+}
+
+.geo-command-deck__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(82, 201, 155, 0.92);
+}
+
+.geo-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-hover);
+  box-shadow: 0 0 0 5px rgba(82, 201, 155, 0.13), 0 0 20px rgba(82, 201, 155, 0.34);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+.geo-command-deck__title {
+  margin-top: 11px;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 2.6vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: #f6fff8;
+  text-shadow: 0 1px 24px rgba(82, 201, 155, 0.18);
+}
+
+.geo-command-deck__subtitle {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(230, 243, 236, 0.7);
+}
+
+/* Breadcrumb links inside the subtitle — every ancestor is a way back up
+   the drill-down (see geo-state.js's nextDrillFor); only the current
+   boundary (geo-breadcrumb-current) is plain, non-interactive text. */
+.geo-breadcrumb-link {
+  font: inherit;
+  color: rgba(191, 247, 217, 0.82);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: color 0.2s var(--ease-premium), text-decoration-color 0.2s var(--ease-premium);
+}
+.geo-breadcrumb-link:hover { color: var(--accent-hover); text-decoration-color: currentColor; }
+.geo-breadcrumb-sep { color: rgba(230, 243, 236, 0.35); }
+.geo-breadcrumb-current { color: rgba(230, 243, 236, 0.7); }
+
+/* ---- KPI grid ----------------------------------------------------------- */
+.geo-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.geo-kpi {
+  position: relative;
+  min-width: 0;
+  padding: 16px 16px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Glass sheen (unchanged) + a dark tint that controls legibility +
+     a beet-leaf photo underneath, same "~12% visible" formula as
+     .btn--primary — these tiles sit on the already-blurred command
+     deck, so backdrop-filter here would have nothing new to sample;
+     baking the photo into the tile's own background reads correctly
+     regardless. Credits: assets/images/CREDITS.md. */
+  background-image:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03)),
+    linear-gradient(145deg, rgba(10, 28, 22, 0.87), rgba(6, 18, 15, 0.91)),
+    url('../images/beet-leaves-closeup.jpg');
+  background-size: auto, auto, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 34px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  transition: transform 0.3s var(--ease-premium), border-color 0.3s var(--ease-premium), box-shadow 0.3s var(--ease-premium);
+}
+
+.geo-kpi:hover {
+  transform: translateY(-3px);
+  border-color: rgba(82, 201, 155, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 48px rgba(0, 0, 0, 0.26);
+}
+
+.geo-kpi::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(82, 201, 155, 0.14), transparent 60%);
+  pointer-events: none;
+}
+
+.geo-kpi__top { display: flex; align-items: center; justify-content: space-between; }
+
+.geo-kpi__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  background: rgba(82, 201, 155, 0.13);
+  color: #bff7d9;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.geo-kpi--hero {
+  grid-column: 1 / -1;
+  padding: 18px 18px 16px;
+  min-height: 128px;
+  border-color: rgba(82, 201, 155, 0.3);
+  background-image:
+    linear-gradient(150deg, rgba(20, 48, 40, 0.82), rgba(10, 24, 20, 0.87)),
+    url('../images/beet-leaves-closeup.jpg');
+  background-size: auto, cover;
+  background-position: center, center 30%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(82, 201, 155, 0.06), 0 22px 48px rgba(0, 0, 0, 0.28);
+}
+
+.geo-kpi--hero .geo-kpi__icon { width: 42px; height: 42px; margin-bottom: 0; }
+.geo-kpi--hero .geo-kpi__value {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(34px, 3.4vw, 48px);
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.geo-kpi--achievement {
+  grid-column: span 2;
+  border-color: rgba(82, 201, 155, 0.22);
+}
+
+.geo-kpi__label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(230, 243, 236, 0.66);
+}
+
+.geo-kpi__value-wrap { display: flex; flex-direction: column; gap: 5px; }
+
+.geo-kpi__value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.1vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: #f8fffb;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.geo-kpi__value.is-updating { animation: kpi-value-refresh 0.9s ease both; }
+
+.geo-kpi__unit {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(191, 247, 217, 0.82);
+}
+
+.geo-kpi__unit--small { font-size: 9px; letter-spacing: 0.15em; }
+
+/* Achievement ring + linear bar. Same rotate(-90deg) SVG convention as the
+   loading screen's boot ring — one visual language for "circular progress"
+   across the whole app. */
+.geo-kpi__body { display: flex; align-items: center; gap: 18px; }
+
+.geo-kpi__ring { position: relative; flex-shrink: 0; width: 76px; height: 76px; }
+.geo-kpi__ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.geo-kpi__ring-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 6; }
+.geo-kpi__ring-progress {
+  fill: none;
+  stroke: var(--accent-hover);
+  stroke-width: 6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(82, 201, 155, 0.55));
+  transition: stroke-dashoffset 0.9s var(--ease-premium);
+}
+.geo-kpi__ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: #f8fffb;
+}
+
+.geo-kpi__bar-track { flex: 1; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.geo-kpi__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--progress-gradient);
+  box-shadow: 0 0 18px rgba(82, 201, 155, 0.3);
+  transition: width 0.9s var(--ease-premium);
+}
+
+.geo-kpi-row { grid-column: 1 / -1; display: flex; gap: 12px; }
+.geo-kpi-row .geo-kpi { flex: 1; min-width: 0; }
+
+.geo-kpi-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 2px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(230, 243, 236, 0.55);
+}
+
+.geo-kpi-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 8px;
+  border-radius: 8px;
+  color: var(--accent-hover);
+  background: rgba(255, 255, 255, 0.04);
+  transition: transform 0.5s var(--ease-premium), color 0.25s var(--ease-premium), background 0.25s var(--ease-premium);
+}
+.geo-kpi-footer button:hover { color: #ffffff; background: var(--accent-soft); transform: rotate(180deg); }
+
+.geo-kpi-panel__empty {
+  grid-column: 1 / -1;
+  padding: 18px 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---- Command actions (top-right icon rail) ------------------------------ */
+.geo-command-actions {
+  position: absolute;
+  top: 28px;
+  right: calc(var(--geo-right-rail) + 24px);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--card-radius);
+  border: var(--panel-border);
+  background: var(--surface-glass);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), var(--panel-shadow);
+  backdrop-filter: blur(var(--panel-blur));
+}
+
+.geo-command-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--button-radius);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  background: var(--button-bg);
+  font-size: 0;
+  transition: transform 0.25s var(--ease-premium), background 0.25s var(--ease-premium), border-color 0.25s var(--ease-premium), color 0.25s var(--ease-premium);
+}
+.geo-command-btn i { font-size: 16px; }
+.geo-command-btn span { display: none; }
+.geo-command-btn:hover,
+.geo-command-btn.is-playing {
+  transform: translateY(-1px);
+  color: var(--text-primary);
+  border-color: rgba(82, 201, 155, 0.24);
+  background: var(--button-hover-bg);
+  /* Same glow language as .btn--primary on the landing page, so the
+     in-app map controls read as the same product, not a plainer one. */
+  box-shadow: 0 8px 22px rgba(58, 150, 120, 0.28);
+}
+.geo-command-btn:active { transform: translateY(0) scale(0.94); }
+.geo-command-btn.is-playing i { animation: spin 1.4s linear infinite; }
+
+/* ---- Map status readout (bottom-right) ---------------------------------- */
+.geo-map-status {
+  position: absolute;
+  right: 28px;
+  bottom: 28px;
+  z-index: 4;
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 24, 20, 0.78);
+  backdrop-filter: blur(20px);
+  color: rgba(239, 255, 245, 0.75);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.geo-map-status__sep { margin: 0 8px; color: rgba(34, 197, 94, 0.9); }
+
+/* ---- Legend -------------------------------------------------------------- */
+.geo-legend {
+  /* Stacked above the minimap on the right edge, clear of the KPI deck
+     (top-left), which can grow tall with content. */
+  position: absolute;
+  right: 28px;
+  bottom: 214px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--legend-gap);
+  min-width: 190px;
+  padding: 14px 14px 12px;
+  border-radius: var(--card-radius);
+  border: var(--legend-border);
+  /* Same opaque-background/blur mismatch as .geo-command-deck above. */
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--panel-blur));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
+}
+
+.geo-legend__title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(82, 201, 155, 0.92);
+}
+
+.geo-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(235, 252, 243, 0.82);
+}
+
+.geo-legend__swatch {
+  width: 18px;
+  height: 10px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+}
+
+/* Each swatch mirrors the actual line treatment used for that boundary
+   level on the map (config.js's THEME.map.levels), so the legend teaches
+   the map's own visual language instead of generic, unrelated dots. */
+.geo-legend__swatch--governorate {
+  background: rgba(143, 255, 240, 0.22);
+  border-color: rgba(143, 255, 240, 0.85);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03), 0 0 8px rgba(99, 255, 215, 0.35);
+}
+.geo-legend__swatch--administration { background: transparent; border-style: dashed; border-color: rgba(150, 255, 235, 0.75); }
+.geo-legend__swatch--district { background: transparent; border-width: 1px; border-color: rgba(200, 255, 243, 0.65); }
+
+/* Live dial for the permanent boundary-line stack — a presenter control,
+   not a data legend item, so it gets its own row with a top rule to read
+   as a separate action rather than one more boundary type. */
+.geo-legend__opacity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.geo-legend__opacity label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(230, 243, 236, 0.66);
+}
+
+/* Shared "cinematic dial" look for every 0..100 slider on the geo screen
+   (this legend's boundary-line dial, the GIS Editor's draft-line dial) —
+   one visual language so both read as the same kind of control. */
+.geo-legend__opacity input[type="range"],
+.gis-editor__opacity input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+.geo-legend__opacity input[type="range"]::-webkit-slider-thumb,
+.gis-editor__opacity input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-hover, #52c99b);
+  box-shadow: 0 0 0 4px rgba(82, 201, 155, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-premium);
+}
+.geo-legend__opacity input[type="range"]::-webkit-slider-thumb:hover,
+.gis-editor__opacity input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.geo-legend__opacity input[type="range"]::-moz-range-thumb,
+.gis-editor__opacity input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-hover, #52c99b);
+  box-shadow: 0 0 0 4px rgba(82, 201, 155, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+.geo-legend__opacity input[type="range"]::-moz-range-track,
+.gis-editor__opacity input[type="range"]::-moz-range-track { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); }
+
+/* ---- Minimap --------------------------------------------------------------- */
+.geo-minimap {
+  position: absolute;
+  right: 28px;
+  bottom: 92px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--card-radius);
+  border: var(--minimap-border);
+  background: var(--minimap-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
+}
+
+.geo-minimap__frame {
+  position: relative;
+  width: 112px;
+  height: 84px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle at 30% 25%, rgba(82, 201, 155, 0.2), transparent 25%),
+    linear-gradient(145deg, rgba(3, 18, 15, 0.96), rgba(16, 42, 37, 0.86));
+}
+.geo-minimap__frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 40%, rgba(255, 255, 255, 0.03));
+}
+
+.geo-minimap__marker {
+  position: absolute;
+  inset: 20% 32% 24% 24%;
+  border-radius: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.03);
+  transition: border-color 0.4s var(--ease-premium), box-shadow 0.4s var(--ease-premium);
+}
+.geo-minimap__marker.is-active {
+  border-color: rgba(82, 201, 155, 0.72);
+  box-shadow: inset 0 0 0 10px rgba(82, 201, 155, 0.12), 0 0 28px rgba(82, 201, 155, 0.24);
+}
+
+.geo-minimap__meta { display: flex; flex-direction: column; gap: 4px; }
+.geo-minimap__label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(82, 201, 155, 0.9); }
+.geo-minimap__name { font-size: 13px; font-weight: 600; color: #f5fff8; }
+
+/* ---- Presentation mode ------------------------------------------------------ */
+.geo-module.is-presentation .geo-command-deck { top: 7vh; left: 7vw; }
+.geo-module.is-presentation .geo-module__map { right: 0; }
+.geo-module.is-presentation .geo-command-actions,
+.geo-module.is-presentation .geo-legend,
+.geo-module.is-presentation .gis-editor { display: none; }
+.geo-module.is-presentation .geo-map-status { right: 7vw; bottom: 7vh; }
+
+.geo-presentation-exit {
+  display: none;
+  position: absolute;
+  top: 28px;
+  right: 30px;
+  z-index: 5;
+  align-items: center;
+  gap: 8px;
+  min-height: 35px;
+  padding: 0 13px;
+  border: 1px solid var(--accent);
+  color: var(--accent-core);
+  background: rgba(3, 20, 17, 0.7);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.geo-module.is-presentation .geo-presentation-exit { display: flex; }
+
+/* ---- Keyframes -------------------------------------------------------------- */
+@keyframes deck-arrive { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+@keyframes live-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes kpi-value-refresh { 0% { opacity: 0.25; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
+
+/* ---- Responsive -------------------------------------------------------------- */
+@media (max-width: 1200px) {
+  .geo-command-deck { width: min(500px, calc(100% - 320px)); }
+  .geo-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .geo-kpi--hero, .geo-kpi--achievement { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .geo-module__map { inset: 0; }
+  .geo-command-deck { left: 16px; top: 16px; width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+  .geo-command-actions { right: 16px; top: 16px; }
+  .geo-map-status { right: 16px; bottom: 16px; }
+  .geo-legend { right: 16px; bottom: 200px; }
+  .geo-minimap { right: 16px; bottom: 92px; }
+}
+
+@media (max-width: 720px) {
+  .geo-command-deck { width: calc(100% - 24px); left: 12px; top: 12px; }
+  .geo-kpi-grid { grid-template-columns: 1fr; }
+  .geo-minimap, .geo-legend { display: none; }
+  .geo-map-status { bottom: 12px; right: 12px; }
+  .geo-command-actions { top: 12px; right: 12px; }
+}

@@ -1,0 +1,282 @@
+/* MK NEXUS — Geo module scaffold + GIS Editor tool chrome.
+   The executive presentation surface (command deck, KPI cards, legend,
+   minimap, command actions, presentation mode) lives entirely in
+   geo-experience.css — this file only owns the bare map container/
+   backdrop scaffold and the backend-boundary editing tool's UI (toolbar,
+   list, entity-selector modal), none of which changed in the rebuild. */
+
+.shell-content--flush { padding: 0; overflow: hidden; }
+
+.geo-module {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+  border-radius: 30px;
+  isolation: isolate;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 30px 90px rgba(0, 0, 0, 0.45);
+}
+
+.geo-module::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 34%, rgba(65, 217, 151, 0.18), transparent 45%), linear-gradient(180deg, rgba(2, 13, 12, 0.16), rgba(2, 13, 12, 0.74));
+}
+
+.geo-module::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 72px 72px;
+  opacity: 0.16;
+}
+
+.geo-module__map { position: absolute; inset: 0 var(--geo-right-rail) 0 0; z-index: 1; min-width: 0; }
+
+.geo-module__map .maplibregl-ctrl-bottom-left,
+.geo-module__map .maplibregl-ctrl-bottom-right { display: none; }
+
+.geo-module__map .maplibregl-canvas-container { background: transparent; }
+
+.geo-module__map .maplibregl-ctrl-top-right {
+  /* Already relative to #mkMapContainer, whose own right edge is
+     pre-inset by --geo-right-rail (see .geo-module__map above) — adding
+     the rail width again here would double-subtract it and misplace the
+     control mid-map. */
+  top: 24px;
+  right: 24px;
+  opacity: 0.72;
+  transition: opacity 0.25s var(--ease-premium);
+}
+.geo-module__map .maplibregl-ctrl-top-right:hover { opacity: 1; }
+
+.geo-module__map .maplibregl-ctrl-group {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(5, 20, 17, 0.78);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+/* ---- GIS Editor tool chrome ---------------------------------------------- */
+
+.gis-editor { position: absolute; inset: 0; z-index: 6; pointer-events: none; font-family: var(--font-display); }
+
+/* Free-floating chrome: each panel is independently positioned/sized, not
+   locked into a shared rail — drag by its header (.gis-editor__drag-handle
+   / .gis-editor__panel-header) anywhere over the map, resize from the
+   native corner grip (`resize: both`). The values below are only the
+   *docked* starting position; gis-editor-ui.js overrides left/top/width/
+   height inline once the user has moved or resized a panel, and persists
+   that across reloads. */
+.gis-editor__toolbar,
+.gis-editor__panel {
+  position: absolute;
+  pointer-events: auto;
+  min-width: 200px;
+  min-height: 140px;
+  max-width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
+  resize: both;
+  overflow: auto;
+  border-radius: var(--card-radius);
+  border: var(--panel-border);
+  background: var(--surface-glass-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
+  backdrop-filter: blur(var(--panel-blur));
+  transition: opacity 0.15s var(--ease-premium), box-shadow 0.15s var(--ease-premium);
+}
+
+.gis-editor__toolbar.is-dragging,
+.gis-editor__panel.is-dragging { opacity: 0.88; box-shadow: 0 28px 64px rgba(0, 0, 0, 0.5); }
+
+.gis-editor__toolbar {
+  top: 124px;
+  right: 24px;
+  width: calc(var(--geo-right-rail) - 32px);
+  height: min(48vh, 430px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 14px;
+}
+
+.gis-editor__drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -14px -14px 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: move;
+  user-select: none;
+}
+.gis-editor__drag-handle > i.fa-grip-lines { color: rgba(255, 255, 255, 0.28); font-size: 11px; }
+
+.gis-editor__toolbar-title { margin: 0; flex: 1; color: rgba(82, 201, 155, 0.9); letter-spacing: 0.2em; white-space: nowrap; }
+
+.gis-editor__reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  color: var(--text-muted);
+  transition: color 0.2s var(--ease-premium), background 0.2s var(--ease-premium), transform 0.4s var(--ease-premium);
+}
+.gis-editor__reset-btn:hover { color: var(--accent-core); background: rgba(82, 201, 155, 0.1); transform: rotate(180deg); }
+
+.gis-editor__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  color: rgba(233, 244, 239, 0.82);
+  background: transparent;
+  white-space: nowrap;
+  font-size: 10px;
+  transition: color 0.25s var(--ease-premium), border-color 0.25s var(--ease-premium), background 0.25s var(--ease-premium), transform 0.15s var(--ease-premium);
+}
+.gis-editor__btn span { overflow: hidden; text-overflow: ellipsis; }
+.gis-editor__btn i { width: 14px; text-align: center; }
+.gis-editor__btn:hover,
+.gis-editor__btn.is-active { color: #f8fffb; border-color: rgba(82, 201, 155, 0.24); background: rgba(82, 201, 155, 0.12); }
+.gis-editor__btn:active:not(:disabled) { transform: scale(0.96); }
+.gis-editor__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.gis-editor__btn--ghost { color: #e07a6a; }
+
+/* The mode toggle gates every other control in this toolbar — it reads as
+   the primary switch (filled accent when on) rather than one button among
+   many, reusing the same filled-accent language as .btn--primary. */
+.gis-editor__btn--mode { margin-bottom: 2px; font-weight: 600; border-color: rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03); }
+.gis-editor__btn--mode.is-active { color: #04140f; background: var(--accent-gradient); border-color: transparent; box-shadow: 0 8px 20px rgba(82, 201, 155, 0.28); }
+
+.gis-editor__divider { width: 100%; height: 1px; margin: 3px 0; background: var(--line-strong); }
+
+.gis-editor__opacity { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 2px 12px 4px; }
+.gis-editor__opacity label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(230, 243, 236, 0.66);
+  white-space: nowrap;
+}
+
+.gis-editor__status {
+  position: absolute;
+  top: 92px;
+  right: 26px;
+  width: min(340px, calc(100% - 300px));
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 201, 155, 0.16);
+  background: rgba(6, 20, 17, 0.85);
+  color: rgba(191, 247, 217, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 28px rgba(0, 0, 0, 0.22);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity var(--duration-fast), transform var(--duration-fast);
+}
+.gis-editor__status.is-active { opacity: 1; transform: translateY(0); }
+
+.gis-editor__panel {
+  top: calc(124px + min(48vh, 430px) + 12px);
+  right: 24px;
+  width: calc(var(--geo-right-rail) - 32px);
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+.gis-editor__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(232, 248, 239, 0.7);
+  cursor: move;
+  user-select: none;
+}
+.gis-editor__drag-grip { display: flex; align-items: center; gap: 8px; }
+.gis-editor__drag-grip i.fa-grip-lines { color: rgba(255, 255, 255, 0.28); font-size: 11px; }
+.gis-editor__panel-header-right { display: flex; align-items: center; gap: 6px; }
+.gis-editor__count { color: rgba(82, 201, 155, 0.92); font-family: var(--font-mono); }
+.gis-editor__list { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; list-style: none; }
+.gis-editor__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 13px 14px 13px 17px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background 0.25s var(--ease-premium), border-color 0.25s var(--ease-premium);
+}
+.gis-editor__item:hover,
+.gis-editor__item.is-selected { background: rgba(82, 201, 155, 0.08); border-color: rgba(82, 201, 155, 0.16); }
+.gis-editor__item.is-selected { border-left-color: var(--accent-hover); }
+.gis-editor__item-main { display: grid; grid-template-columns: 9px minmax(0, 1fr); gap: 10px; min-width: 0; }
+.gis-editor__item-dot { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(58, 150, 120, 0.65); }
+.gis-editor__item-dot--governorate-group { background: var(--metal-highlight); box-shadow: 0 0 8px rgba(183, 188, 189, 0.5); }
+.gis-editor__item-dot--district { background: var(--accent-hover); box-shadow: 0 0 8px rgba(82, 201, 155, 0.65); }
+.gis-editor__item-dot--agricultural-zone { background: var(--gold); box-shadow: 0 0 8px rgba(195, 175, 142, 0.55); }
+.gis-editor__item-name { overflow: hidden; color: var(--text-primary); font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; text-overflow: ellipsis; white-space: nowrap; }
+.gis-editor__item-type { display: block; margin-top: 5px; color: var(--text-muted); font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.04em; text-transform: uppercase; }
+.gis-editor__item-type i { margin-right: 5px; color: var(--accent-hover); }
+.gis-editor__item-kpi { grid-column: 1 / -1; margin-top: 2px; overflow: hidden; color: var(--accent-hover); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.02em; text-overflow: ellipsis; white-space: nowrap; }
+.gis-editor__item-actions { display: flex; gap: 3px; align-items: center; }
+.gis-editor__item-btn { width: 26px; height: 26px; border-radius: 8px; color: var(--text-muted); transition: color 0.2s var(--ease-premium), background 0.2s var(--ease-premium); }
+.gis-editor__item-btn:hover { color: var(--accent-core); background: rgba(82, 201, 155, 0.1); }
+.gis-editor__item-btn--danger:hover { color: #e07a6a; background: rgba(224, 122, 106, 0.1); }
+.gis-editor__empty { padding: 18px; color: var(--text-muted); }
+
+.gis-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 8, 7, 0.72); backdrop-filter: blur(10px); }
+.gis-modal.is-open { display: flex; }
+.gis-modal__card { display: grid; gap: 8px; width: min(440px, 100%); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; border-radius: var(--card-radius); border: var(--panel-border); background: var(--surface-panel); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), var(--panel-shadow); }
+.gis-modal__title { margin-bottom: 8px; color: var(--text-primary); }
+.gis-modal__label { margin-top: 6px; color: var(--text-muted); }
+.gis-modal__input { width: 100%; padding: 10px 11px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08); color: var(--text-primary); background: rgba(255, 255, 255, 0.04); font: inherit; }
+.gis-modal__loading { min-height: 16px; color: var(--accent-hover); font-family: var(--font-mono); font-size: 10px; }
+.gis-modal__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* Docked *default* geometry only, for whichever panel the user hasn't
+   dragged/resized yet — gis-editor-ui.js writes left/top/width/height
+   inline the moment a panel is moved or resized, and inline styles always
+   win over these, on any breakpoint. */
+@media (max-width: 900px) {
+  /* The map itself must shrink its right inset to match the toolbar/panel
+     below, or it keeps reserving the full desktop --geo-right-rail width
+     as dead space no visible panel occupies anymore (map/geo-module.css
+     ".geo-module__map" reads this same custom property). */
+  .geo-module { --geo-right-rail: 190px; }
+  .gis-editor__toolbar { top: 158px; right: 12px; width: 166px; height: 42vh; }
+  .gis-editor__panel { top: calc(158px + 42vh + 12px); right: 12px; width: 166px; height: 30vh; }
+  .gis-editor__status { top: 12px; right: 190px; width: min(280px, calc(100% - 214px)); }
+}
+
+@media (max-width: 620px) {
+  /* The panel moves to a full-width dock at the bottom here, so it no
+     longer eats into the right edge at all — only the toolbar still
+     does, at 148px + margins. */
+  .geo-module { --geo-right-rail: 170px; }
+  .gis-editor__toolbar { top: auto; right: 10px; bottom: 220px; width: 148px; height: 200px; }
+  .gis-editor__toolbar-title { display: none; }
+  .gis-editor__panel { top: auto; right: 10px; bottom: 12px; width: calc(100% - 20px); height: 200px; }
+  .gis-editor__status { top: 12px; left: 12px; right: 12px; width: auto; }
+}

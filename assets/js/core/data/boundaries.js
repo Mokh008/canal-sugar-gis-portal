@@ -1,0 +1,300 @@
+window.MKNexus = window.MKNexus || {};
+
+/* Boundary repository: local storage is a durable offline cache; production
+  synchronization uses only the centralized API service. */
+MKNexus.Boundaries = (function () {
+  const STORAGE_KEY = 'mknexus_boundaries_v2';
+  const TYPES = ['governorate-group', 'administration', 'district', 'agricultural-zone'];
+
+  function loadAll() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.error('[MK Nexus] Failed to load boundaries', e);
+      return [];
+    }
+  }
+
+  let store = loadAll();
+
+  function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
+
+  function unwrapRows(data) {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.rows)) return data.rows;
+    if (data?.geometry || data?.Polygon || data?.polygon) return [data];
+    if (Array.isArray(data?.features)) return data.features.map((feature) => ({
+      id: feature.id || feature.properties?.id || feature.properties?.BoundaryID,
+      parentId: feature.properties?.parentId || feature.properties?.ParentID || null,
+      type: feature.properties?.type || feature.properties?.EntityType,
+      name: feature.properties?.name || feature.properties?.label || feature.properties?.Name,
+      geometry: feature.geometry || feature.properties?.Polygon,
+      metadata: feature.properties || {},
+    }));
+    return [];
+  }
+
+  function firstValue(row, keys) {
+    return keys.map((key) => row?.[key]).find((value) => value !== undefined && value !== null && value !== '');
+  }
+
+  function typeForRow(row, typeHint) {
+    if (typeHint) return typeHint;
+    const value = String(firstValue(row, ['type', 'Type', 'entityType', 'EntityType']) || '').toLowerCase();
+    if (value.includes('admin')) return 'administration';
+    if (value.includes('district')) return 'district';
+    if (value.includes('zone')) return 'agricultural-zone';
+    return 'governorate-group';
+  }
+
+  function normalizeEntity(row, typeHint) {
+    if (!row) return null;
+    const type = typeForRow(row, typeHint);
+    const id = firstValue(row, type === 'administration'
+      ? ['id', 'ID', 'AdministrationID', 'administrationId', 'BoundaryID', 'boundaryId']
+      : type === 'district'
+        ? ['id', 'ID', 'DistrictID', 'districtId', 'BoundaryID', 'boundaryId']
+        : ['id', 'ID', 'GovernorateID', 'governorateId', 'BoundaryID', 'boundaryId']);
+    if (!id) return null;
+    const parentKeys = type === 'district'
+      ? ['parentId', 'parentID', 'ParentID', 'AdministrationID', 'administrationId']
+      : type === 'administration'
+        ? ['parentId', 'parentID', 'ParentID', 'GovernorateID', 'governorateId']
+        : ['parentId', 'parentID', 'ParentID'];
+    const parentId = firstValue(row, parentKeys) || null;
+    const geometry = row.geometry || row.Geometry || row.Polygon || row.polygon || null;
+    return {
+      id: String(id),
+      parentId: parentId ? String(parentId) : null,
+      type,
+      name: String(firstValue(row, ['name', 'Name', 'NameEnglish', 'NameArabic', 'label', 'Label', 'GovernorateName', 'AdministrationName', 'DistrictName']) || 'Unnamed boundary'),
+      geometry,
+      metadata: { ...(row.metadata || {}), ...(row.properties || {}), color: firstValue(row, ['color', 'Color']) || row.metadata?.color || row.properties?.color || null },
+      center: row.center || row.Center || null,
+      area: firstValue(row, ['area', 'Area']) || null,
+      version: firstValue(row, ['version', 'Version']) || 0,
+      createdAt: row.createdAt || row.CreatedAt || new Date().toISOString(),
+      updatedAt: row.updatedAt || row.UpdatedAt || new Date().toISOString(),
+    };
+  }
+
+  function normalizeBoundary(row) {
+    const boundary = normalizeEntity(row);
+    return boundary?.geometry ? boundary : null;
+  }
+
+  async function getEntities(type, parentId = null) {
+    const action = { 'governorate-group': 'getGovernorates', administration: 'getAdministrations', district: 'getDistricts' }[type];
+    if (!action) return [];
+    const params = parentId
+      ? type === 'district'
+        ? { AdministrationID: parentId, administrationId: parentId, parentId }
+        : { GovernorateID: parentId, governorateId: parentId, parentId }
+      : {};
+    const data = await MKNexus.ApiClient[action](params);
+    return unwrapRows(data).map((row) => normalizeEntity(row, type)).filter(Boolean);
+  }
+
+  async function getEntityWithGeometry(entity) {
+    if (entity.geometry) return entity;
+    try {
+      const data = await MKNexus.ApiClient.getPolygon({ BoundaryID: entity.id, boundaryId: entity.id, id: entity.id });
+      const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
+      return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
+    } catch (error) {
+      console.warn(`[MK Nexus] Polygon lookup failed for ${entity.id}: ${error.message}`);
+      return entity;
+    }
+  }
+
+  async function hydrate() {
+    const requests = [
+      MKNexus.ApiClient.getGovernorates(),
+      MKNexus.ApiClient.getAdministrations(),
+      MKNexus.ApiClient.getDistricts(),
+      MKNexus.ApiClient.getZones(),
+    ];
+    const masterRequests = [
+      MKNexus.Boundaries.getEntities('governorate-group'),
+      MKNexus.Boundaries.getEntities('administration'),
+      MKNexus.Boundaries.getEntities('district'),
+    ];
+    const [results, masterResults] = await Promise.all([
+      Promise.allSettled(requests),
+      Promise.allSettled(masterRequests),
+    ]);
+    const remote = results.flatMap((result) => result.status === 'fulfilled' ? unwrapRows(result.value) : []).map(normalizeBoundary).filter(Boolean);
+    const masters = masterResults.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    const byId = new Map(store.map((boundary) => [boundary.id, boundary]));
+    masters.forEach((entity) => {
+      const existing = byId.get(entity.id);
+      if (existing) Object.assign(existing, { name: entity.name, parentId: entity.parentId, type: entity.type, metadata: { ...existing.metadata, ...entity.metadata } });
+      else byId.set(entity.id, entity);
+    });
+    remote.forEach((boundary) => byId.set(boundary.id, { ...byId.get(boundary.id), ...boundary, name: byId.get(boundary.id)?.name || boundary.name }));
+    if (masters.length || remote.length) replaceAll(Array.from(byId.values()));
+    return getAll();
+  }
+
+  function featureFor(boundary) {
+    return toFeatureCollection([boundary]).features[0];
+  }
+
+  // Every write here is optimistic: the local cache (and localStorage) is
+  // already updated by the time this fires, so a failure here means local
+  // state and the backend have silently diverged unless the user is told.
+  function sync(operation, label, payload, boundaryName) {
+    return operation(payload).catch((error) => {
+      console.warn(`[MK Nexus] ${label} synchronization failed: ${error.message}`);
+      MKNexus.Toast?.error(
+        `Couldn't save "${boundaryName || 'this boundary'}" to the server — your change is only saved on this device. ${error.message || ''}`.trim(),
+        { duration: 8000 }
+      );
+      throw error;
+    });
+  }
+
+  function generateId(type) {
+    const prefix = { 'governorate-group': 'GRP', administration: 'ADM', district: 'DST', 'agricultural-zone': 'AGZ' }[type] || 'GEO';
+    return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+  }
+
+  function create({ type, name, parentId = null, geometry, metadata = {}, color = null, icon = null }) {
+    if (!TYPES.includes(type)) throw new Error(`Invalid boundary type: ${type}`);
+    const boundary = {
+      id: generateId(type),
+      parentId: parentId || null,
+      type,
+      name: name || `Untitled ${type}`,
+      geometry,
+      metadata: { ...metadata, color, icon },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    store.push(boundary);
+    persist();
+    sync(MKNexus.ApiClient.createGeoJSON, 'createGeoJSON', { geojson: featureFor(boundary), boundary }, boundary.name).catch(() => {});
+    return boundary;
+  }
+
+  function update(id, patch) {
+    const b = store.find((x) => x.id === id);
+    if (!b) return null;
+    Object.assign(b, patch, { updatedAt: new Date().toISOString() });
+    persist();
+    sync(MKNexus.ApiClient.updateGeoJSON, 'updateGeoJSON', { id, geojson: featureFor(b), boundary: b }, b.name).catch(() => {});
+    return b;
+  }
+
+  function upsertEntity(entity) {
+    const existing = getById(entity.id);
+    if (existing) {
+      if (entity.geometry && !existing.geometry) {
+        Object.assign(existing, { geometry: entity.geometry, center: entity.center, area: entity.area, version: entity.version });
+        persist();
+      }
+      return existing;
+    }
+    const boundary = {
+      id: String(entity.id),
+      parentId: entity.parentId || null,
+      type: entity.type,
+      name: entity.name,
+      geometry: entity.geometry || null,
+      metadata: { ...(entity.metadata || {}) },
+      center: entity.center || null,
+      area: entity.area || null,
+      version: entity.version || 0,
+      createdAt: entity.createdAt || new Date().toISOString(),
+      updatedAt: entity.updatedAt || new Date().toISOString(),
+    };
+    store.push(boundary);
+    persist();
+    return boundary;
+  }
+
+  function updateGeometry(id, { entityType, geometry, center, area, version }) {
+    const boundary = store.find((item) => item.id === String(id));
+    if (!boundary) return null;
+    const next = { geometry, center, area, version, updatedAt: new Date().toISOString() };
+    Object.assign(boundary, next);
+    persist();
+    sync(MKNexus.ApiClient.updateGeoJSON, 'updateGeoJSON', {
+      BoundaryID: String(id),
+      EntityType: entityType,
+      Polygon: geometry,
+      Center: center,
+      Area: area,
+      Version: version,
+    }, boundary.name).catch(() => {});
+    return boundary;
+  }
+
+  function replaceAll(nextStore) {
+    store = nextStore.map((boundary) => ({ ...boundary, metadata: { ...(boundary.metadata || {}) } }));
+    persist();
+    return getAll();
+  }
+
+  function duplicate(id) {
+    const original = getById(id);
+    if (!original) return null;
+    return create({
+      ...original,
+      name: `${original.name} Copy`,
+      geometry: JSON.parse(JSON.stringify(original.geometry)),
+      metadata: { ...original.metadata, duplicatedFrom: original.id },
+    });
+  }
+
+  function remove(id) {
+    const toRemove = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      store.forEach((b) => {
+        if (b.parentId && toRemove.has(b.parentId) && !toRemove.has(b.id)) {
+          toRemove.add(b.id);
+          changed = true;
+        }
+      });
+    }
+    // Captured before filtering — once removed from `store`, there's
+    // nothing left to read a name from for the failure toast below.
+    const removedNames = new Map(store.filter((b) => toRemove.has(b.id)).map((b) => [b.id, b.name]));
+    store = store.filter((b) => !toRemove.has(b.id));
+    persist();
+    toRemove.forEach((removedId) => sync(MKNexus.ApiClient.deleteGeoJSON, 'deleteGeoJSON', { id: removedId }, removedNames.get(removedId)).catch(() => {}));
+    return Array.from(toRemove);
+  }
+
+  function getAll() { return store.slice(); }
+  function getById(id) { return store.find((b) => b.id === id) || null; }
+  function getByType(type) { return store.filter((b) => b.type === type); }
+  function getChildren(parentId) { return store.filter((b) => b.parentId === parentId); }
+
+  function toFeatureCollection(list = store) {
+    return {
+      type: 'FeatureCollection',
+      features: list.map((b) => ({
+        type: 'Feature',
+        id: b.id,
+        properties: {
+          id: b.id,
+          parentId: b.parentId,
+          type: b.type,
+          name: b.name,
+          label: b.metadata?.label || b.name,
+          color: b.metadata?.color || null,
+          icon: b.metadata?.icon || null,
+          ...b.metadata,
+        },
+        geometry: b.geometry,
+      })),
+    };
+  }
+
+  return { create, update, updateGeometry, upsertEntity, remove, duplicate, replaceAll, hydrate, getEntities, getEntityWithGeometry, getAll, getById, getByType, getChildren, toFeatureCollection, TYPES };
+})();

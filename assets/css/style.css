@@ -1,1 +1,594 @@
-/* Canal Sugar GIS Portal */
+/* =====================================================================
+   MK NEXUS — Geo Intelligence & Operations Platform
+   STYLESHEET — Feature 01: Loading Screen + Landing Page
+   =====================================================================
+   Design tokens now live in tokens.css (loaded before this file) and
+   the shared background/texture system lives in background.css.
+   This file only contains component styles that consume those tokens.
+
+   Table of contents:
+     1.  Reset & base
+     2.  Utility classes
+     3.  Loading screen
+     4.  Landing page — backdrop / contours / grid
+     5.  Landing page — top bar
+     6.  Landing page — hero
+     7.  Landing page — buttons
+     8.  Landing page — footer
+     9.  Responsive
+     10. Reduced motion
+   ===================================================================== */
+
+
+/* ---------------------------------------------------------------------
+   2. RESET & BASE
+--------------------------------------------------------------------- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Author `display` rules (even a plain class selector) always win over the
+   UA stylesheet's `[hidden] { display: none }` — same origin/specificity
+   tier, and normal author styles beat normal UA styles regardless. Any
+   component class that also sets its own `display` (flex layouts are
+   common) silently defeats `el.hidden = true` unless this exists. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  background:
+    radial-gradient(1200px 800px at 10% 0%, var(--accent-hover-soft), transparent 60%),
+    radial-gradient(900px 700px at 90% 10%, rgba(18, 92, 82, 0.24), transparent 62%),
+    var(--surface-void);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img { display: block; max-width: 100%; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+
+/* ---------------------------------------------------------------------
+   3. UTILITY CLASSES
+--------------------------------------------------------------------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+
+/* ---------------------------------------------------------------------
+   4. LOADING SCREEN
+--------------------------------------------------------------------- */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loading);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Same vignette as before (light center fading to void at the edges),
+     now with a beet-harvest photo peeking through at ~4-18% — barely
+     there, so the boot content stays the focus. Credits: assets/images/CREDITS.md. */
+  background-image:
+    radial-gradient(ellipse at 50% 40%, rgba(5, 31, 25, 0.82) 0%, rgba(2, 13, 12, 0.96) 70%),
+    url('../images/beet-harvester-action.jpg');
+  background-size: auto, cover;
+  background-position: center, 30% 35%;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.loading-screen__grid {
+  position: absolute;
+  inset: -2px;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse at 50% 45%, black 0%, transparent 75%);
+  opacity: 0.5;
+}
+
+.loading-screen__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  transform: translateY(0);
+}
+
+.loading-screen__logo-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-screen__logo {
+  width: 76px;
+  height: 76px;
+  opacity: 0;
+  filter: drop-shadow(0 0 18px rgba(58, 150, 120, 0.45));
+}
+
+.loading-screen__ring {
+  position: absolute;
+  inset: 0;
+  width: 140px;
+  height: 140px;
+  transform: rotate(-90deg);
+}
+
+.loading-screen__ring-track {
+  fill: none;
+  stroke: var(--line-soft);
+  stroke-width: 1.5;
+}
+
+.loading-screen__ring-progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 402.1;
+  stroke-dashoffset: 402.1;
+  filter: drop-shadow(0 0 6px rgba(58, 150, 120, 0.6));
+}
+
+.loading-screen__wordmark {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.loading-screen__wordmark-mk { color: var(--text-primary); }
+.loading-screen__wordmark-nexus { color: var(--accent); margin-left: 0.45em; }
+
+.loading-screen__console {
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.loading-screen__console-line {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.loading-screen__bar-track {
+  width: 260px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.loading-screen__bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent-gradient);
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(58, 150, 120, 0.6);
+}
+
+.loading-screen__percent {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  opacity: 0;
+}
+
+.loading-screen.is-done {
+  pointer-events: none;
+}
+
+
+/* ---------------------------------------------------------------------
+   5. LANDING PAGE — BACKDROP / CONTOURS / GRID
+--------------------------------------------------------------------- */
+.landing {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+}
+
+.landing__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--surface-void);
+}
+
+/* Real sugar beet field photography, hosted locally in assets/images/
+   (see assets/images/CREDITS.md for source/license). The dark vertical
+   grade lives on the same layer as the photo so the contour SVG / grid /
+   glow drawn on top still read as a tech overlay rather than fighting a
+   separate solid backdrop underneath. */
+.landing__backdrop--photo {
+  background-image:
+    linear-gradient(200deg, rgba(2, 13, 12, 0.55) 0%, rgba(2, 13, 12, 0.72) 55%, rgba(2, 13, 12, 0.92) 100%),
+    url('../images/landing-beet-pile.jpg');
+  background-size: cover;
+  background-position: center 40%;
+  background-repeat: no-repeat;
+}
+
+.landing__contours {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+}
+
+.contour-path {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 2600;
+  stroke-dashoffset: 2600;
+}
+
+.landing__grid-plane {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 40%, black 70%, transparent 100%);
+  opacity: 0.35;
+}
+
+.landing__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+.landing__glow--emerald {
+  width: 620px;
+  height: 620px;
+  top: -180px;
+  right: -160px;
+  background: var(--accent-soft);
+}
+
+.landing__glow--teal {
+  width: 560px;
+  height: 560px;
+  bottom: -220px;
+  left: -160px;
+  background: rgba(28, 107, 83, 0.18); /* var(--accent-dim) at low alpha */
+}
+
+
+/* ---------------------------------------------------------------------
+   6. LANDING PAGE — TOP BAR
+--------------------------------------------------------------------- */
+.landing__topbar {
+  position: relative;
+  z-index: 2;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+}
+
+.landing__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landing__brand-mark {
+  width: 30px;
+  height: 30px;
+}
+
+.landing__brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--text-primary);
+}
+
+.landing__status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.landing__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 2px var(--accent);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+.landing__status-text { color: var(--text-secondary); }
+.landing__status-divider { color: var(--line-strong); }
+.landing__status-coords {
+  color: var(--accent);
+  min-width: 168px;
+}
+
+
+/* ---------------------------------------------------------------------
+   7. LANDING PAGE — HERO
+--------------------------------------------------------------------- */
+.landing__hero {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 48px;
+  max-width: 900px;
+}
+
+.landing__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 28px;
+  opacity: 0;
+}
+
+.landing__eyebrow i { font-size: 11px; }
+
+.landing__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 800;
+  font-size: clamp(56px, 9vw, 128px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  margin-bottom: 22px;
+}
+
+.landing__title-line {
+  display: block;
+  opacity: 0;
+  color: var(--text-primary);
+}
+
+.landing__title-line--accent {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing__subtitle {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+  opacity: 0;
+}
+
+.landing__description {
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 560px;
+  margin-bottom: 40px;
+  opacity: 0;
+}
+
+.landing__cta-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  opacity: 0;
+}
+
+
+/* ---------------------------------------------------------------------
+   8. LANDING PAGE — BUTTONS
+--------------------------------------------------------------------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 28px;
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: transform 0.35s var(--ease-premium), box-shadow 0.35s var(--ease-premium);
+}
+
+.btn--primary {
+  color: #04140f;
+  /* Accent gradient at ~88% opacity over a beet-leaf canopy photo — reads
+     as organic texture, not a literal picture; the gradient stays the
+     dominant surface so button-text contrast is untouched. Photo credit:
+     assets/images/CREDITS.md. */
+  background-image: linear-gradient(135deg, rgba(58, 150, 120, 0.88) 0%, rgba(82, 201, 155, 0.88) 100%), url('../images/beet-leaves-closeup.jpg');
+  background-size: auto, cover;
+  background-position: center, center 35%;
+  overflow: hidden;
+  box-shadow: var(--shadow-glow);
+}
+
+.btn--primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease-premium);
+}
+
+.btn--primary:hover::before { transform: translateX(120%); }
+
+.btn--primary i {
+  transition: transform 0.35s var(--ease-premium);
+}
+
+.btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 55px rgba(58, 150, 120, 0.4);
+}
+
+.btn--primary:hover i { transform: translateX(4px); }
+
+.btn--ghost {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(8px);
+}
+
+.btn--ghost:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.btn--ghost i { color: var(--accent); font-size: 16px; }
+
+
+/* ---------------------------------------------------------------------
+   9. LANDING PAGE — FOOTER
+--------------------------------------------------------------------- */
+.landing__footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 48px 30px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  border-top: 1px solid var(--line-soft);
+}
+
+
+/* ---------------------------------------------------------------------
+   10. RESPONSIVE
+--------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .landing__topbar,
+  .landing__hero,
+  .landing__footer {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .landing__status-coords { display: none; }
+  .landing__status-divider { display: none; }
+
+  .landing__title { font-size: clamp(44px, 13vw, 88px); }
+
+  .landing__description { font-size: 15.5px; }
+
+  .landing__cta-row { flex-wrap: wrap; }
+}
+
+@media (max-width: 560px) {
+  .landing__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .btn { width: 100%; justify-content: center; }
+  .landing__cta-row { width: 100%; }
+}
+
+
+/* ---------------------------------------------------------------------
+   11. REDUCED MOTION
+--------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .landing__status-dot { animation: none; }
+
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

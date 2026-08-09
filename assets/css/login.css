@@ -1,0 +1,358 @@
+/* =====================================================================
+   MK NEXUS — Login Screen
+   The authentication gate shown after the boot sequence, before the
+   landing page. Full-bleed `.mk-field` sugar-beet aerial scene behind a
+   glass card, wired to the real backend (MKNexus.ApiClient.login).
+
+   Table of contents:
+     1. Screen shell + backdrop
+     2. Ambient stat chips
+     3. Card
+     4. Form fields (floating label)
+     5. Checkbox / links
+     6. Submit button states
+     7. Corner brand + responsive
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. SCREEN SHELL + BACKDROP
+--------------------------------------------------------------------- */
+.login-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  opacity: 0;
+  background: var(--surface-void);
+}
+
+.login-screen.is-visible { display: flex; }
+
+.login-screen__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--surface-void);
+}
+
+/* Real sugar beet harvest photography, hosted locally in assets/images/
+   (see assets/images/CREDITS.md for source/license). A vertical
+   mood-grade sits on the same layer as the photo so the two paint as one
+   image instead of a visible seam; ::after adds the horizontal reading
+   gradient that darkens toward the card. */
+.login-screen__backdrop--photo {
+  background-image:
+    linear-gradient(180deg, rgba(3, 14, 12, 0.32) 0%, rgba(3, 14, 12, 0.05) 32%, rgba(2, 10, 9, 0.55) 78%, rgba(2, 10, 9, 0.88) 100%),
+    url('../images/login-beet-harvest.jpg');
+  background-size: cover;
+  background-position: center 55%;
+  background-repeat: no-repeat;
+}
+
+.login-screen__backdrop::after {
+  /* Reading gradient — darkens the right side where the card sits,
+     without flattening the illustration on the left. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(2, 13, 11, 0.1) 0%, rgba(2, 13, 11, 0.5) 55%, rgba(2, 13, 11, 0.84) 78%);
+}
+
+.login-screen__glow-a { width: 640px; height: 640px; top: -200px; left: -160px; }
+.login-screen__glow-b { width: 520px; height: 520px; bottom: -200px; left: 20%; background: var(--harvest-gold-soft); }
+
+/* ---------------------------------------------------------------------
+   2. AMBIENT STAT CHIPS — scattered over the illustration, purely
+   atmospheric ("live system" feel), hidden below the panel breakpoint.
+--------------------------------------------------------------------- */
+.login-screen__stats { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+
+.login-stat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface-glass);
+  border: 1px solid var(--line-soft);
+  backdrop-filter: blur(var(--blur-sm));
+  box-shadow: var(--shadow-panel);
+  opacity: 0;
+  animation: login-stat-float 7s ease-in-out infinite;
+}
+
+.login-stat i { font-size: 16px; color: var(--harvest-gold); }
+.login-stat__value { display: block; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+.login-stat__label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-top: 2px; }
+
+.login-stat--1 { left: 8%; top: 20%; animation-delay: 0.2s; }
+.login-stat--2 { left: 10%; top: 68%; animation-delay: 0.6s; }
+.login-stat--3 { left: 42%; top: 84%; animation-delay: 1s; }
+
+@keyframes login-stat-float {
+  0% { opacity: 0; transform: translateY(14px); }
+  8%, 92% { opacity: 1; transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+
+/* ---------------------------------------------------------------------
+   3. CARD
+--------------------------------------------------------------------- */
+.login-screen__panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  padding: clamp(20px, 5vw, 96px);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 408px;
+  padding: clamp(28px, 3.4vw, 44px);
+  border-radius: var(--panel-radius);
+  background: var(--surface-glass-strong);
+  border: var(--panel-border);
+  box-shadow: var(--panel-shadow), var(--panel-glow);
+  backdrop-filter: blur(var(--panel-blur));
+  opacity: 0;
+}
+
+.login-card__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.login-card__brand-mark {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-gradient);
+  color: #04140f;
+  font-size: 15px;
+}
+.login-card__brand-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.2em; color: var(--text-primary); }
+
+.login-card__title { font-family: var(--font-display); font-size: 27px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+.login-card__subtitle { font-size: 13.5px; line-height: 1.6; color: var(--text-muted); margin-bottom: 26px; max-width: 320px; }
+
+.login-card__error {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-sm);
+  background: rgba(224, 122, 106, 0.1);
+  border: 1px solid rgba(224, 122, 106, 0.32);
+  color: #f2a99a;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.login-card__error.is-visible { display: flex; }
+.login-card__error::before {
+  content: '\f071';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.login-card.is-shake { animation: login-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes login-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+/* ---------------------------------------------------------------------
+   4. FORM FIELDS — CSS-only floating label
+--------------------------------------------------------------------- */
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+
+.login-field { position: relative; }
+
+.login-field__input {
+  width: 100%;
+  height: 54px;
+  padding: 20px 16px 6px 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-soft);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium);
+}
+
+.login-field__input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.045); }
+.login-field.is-invalid .login-field__input { border-color: rgba(224, 122, 106, 0.55); }
+
+.login-field__label {
+  position: absolute;
+  left: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 13.5px;
+  pointer-events: none;
+  transition: all var(--duration-fast) var(--ease-premium);
+}
+
+.login-field__input:focus + .login-field__label,
+.login-field__input:not(:placeholder-shown) + .login-field__label {
+  top: 15px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+}
+
+.login-field__icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color var(--duration-fast) var(--ease-premium);
+}
+
+.login-field__input:focus ~ .login-field__icon { color: var(--accent-hover); }
+
+.login-field__toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+.login-field__toggle:hover { color: var(--accent-hover); background: rgba(255, 255, 255, 0.04); }
+
+/* ---------------------------------------------------------------------
+   5. CHECKBOX / LINKS
+--------------------------------------------------------------------- */
+.login-form__row { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+
+.login-checkbox { display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text-secondary); }
+.login-checkbox input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+
+.login-checkbox__box {
+  width: 17px; height: 17px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  color: transparent;
+  font-size: 10px;
+  transition: background var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium), color var(--duration-fast) var(--ease-premium);
+}
+
+.login-checkbox input:checked + .login-checkbox__box {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #04140f;
+}
+.login-checkbox input:focus-visible + .login-checkbox__box { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.login-form__forgot { font-size: 12px; color: var(--text-muted); }
+.login-form__forgot:hover { color: var(--accent-hover); }
+
+/* ---------------------------------------------------------------------
+   6. SUBMIT BUTTON STATES
+--------------------------------------------------------------------- */
+.login-form__submit {
+  justify-content: center;
+  width: 100%;
+  margin-top: 6px;
+  height: 52px;
+}
+
+.login-form__spinner {
+  display: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(4, 20, 15, 0.35);
+  border-top-color: #04140f;
+  animation: login-spin 0.7s linear infinite;
+}
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
+.login-form__submit.is-loading { pointer-events: none; opacity: 0.88; }
+.login-form__submit.is-loading .login-form__submit-label,
+.login-form__submit.is-loading i.fa-arrow-right { display: none; }
+.login-form__submit.is-loading .login-form__spinner { display: inline-block; }
+
+.login-form__demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--line-strong);
+  color: var(--harvest-gold);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.login-form__demo:hover { border-color: var(--harvest-gold); background: var(--harvest-gold-soft); }
+.login-form__demo i { font-size: 11px; }
+
+.login-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.login-card__footer i { color: var(--accent); font-size: 11px; }
+
+/* ---------------------------------------------------------------------
+   7. CORNER BRAND + RESPONSIVE
+--------------------------------------------------------------------- */
+.login-screen__corner-brand {
+  position: absolute;
+  z-index: 2;
+  left: 48px;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.login-screen__corner-brand-sep { color: var(--line-strong); }
+
+@media (max-width: 860px) {
+  .login-screen__panel { justify-content: center; padding: 24px; }
+  .login-screen__stats { display: none; }
+  .login-screen__corner-brand { left: 24px; bottom: 20px; font-size: 10px; }
+}
+
+@media (max-height: 700px) {
+  .login-card__subtitle { margin-bottom: 18px; }
+  .login-form { gap: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-stat { animation: none; opacity: 1; }
+  .login-card.is-shake { animation: none; }
+}

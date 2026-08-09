@@ -1,0 +1,131 @@
+/* =====================================================================
+   MK NEXUS — Background & Texture System
+   Reusable across landing, app shell, and presentation mode. Everything
+   here reads as "satellite / mission-control surface", never a flat
+   color fill — depth comes from stacking soft glow + grid + grain at
+   low opacity, exactly as the mood board layers photographic tiles
+   under a dark glass grid.
+
+   Apply `.mk-surface` to any full-bleed container that needs this
+   backdrop (landing__backdrop today; shell/presentation mode reuse it
+   in later steps rather than duplicating the layers).
+   ===================================================================== */
+
+.mk-surface {
+  position: relative;
+  background: var(--surface-void);
+  isolation: isolate;
+}
+
+/* ---------------------------------------------------------------------
+   GRAIN — faint satellite-noise texture, sampled as a tiny inline SVG
+   turbulence filter so no image request/file is needed. Kept under 4%
+   opacity — texture, not visible static.
+--------------------------------------------------------------------- */
+.mk-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ---------------------------------------------------------------------
+   METAL VIGNETTE — a whisper of the brushed-steel tone at the very
+   edge of the frame, echoing the identity plate without competing
+   with it. Barely visible; reads as "machined enclosure", not a border.
+--------------------------------------------------------------------- */
+.mk-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 100%, rgba(124, 130, 131, 0.05) 0%, transparent 55%);
+}
+
+/* ---------------------------------------------------------------------
+   GLOW BLOOMS — petroleum/emerald ambient light, tiered so one bloom
+   sits at accent strength and the other sits a step dimmer/cooler —
+   mirrors the hologram's own falloff from bright core to dim edge.
+--------------------------------------------------------------------- */
+.mk-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mk-glow--primary { background: var(--accent-soft); }
+.mk-glow--secondary { background: rgba(28, 107, 83, 0.18); } /* var(--accent-dim) at low alpha */
+
+/* ---------------------------------------------------------------------
+   FIELD SCENE — light-touch accents (warm horizon glow, a scanning
+   sweep, floating crystal/leaf particles) that sit *over* real sugar
+   beet harvest photography (see login.css's/style.css's `--photo`
+   background-image rules). The generated procedural field pattern this
+   used to draw on its own was dropped in favor of actual photos — kept
+   here is just the "GIS telemetry over the shot" layer. Shared by the
+   login screen and the landing backdrop via `.mk-field`.
+--------------------------------------------------------------------- */
+.mk-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mk-field__horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0%;
+  height: 46%;
+  background: radial-gradient(60% 100% at 50% 100%, var(--harvest-gold-soft) 0%, transparent 72%);
+  filter: blur(6px);
+}
+
+.mk-field__sweep {
+  position: absolute;
+  top: -20%;
+  left: -35%;
+  width: 55%;
+  height: 140%;
+  background: linear-gradient(100deg, transparent 40%, rgba(227, 181, 103, 0.12) 50%, transparent 60%);
+  animation: field-sweep 10s ease-in-out infinite;
+}
+
+@keyframes field-sweep {
+  0%, 100% { transform: translateX(-10%); }
+  50% { transform: translateX(220%); }
+}
+
+.mk-field__particle {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--harvest-gold);
+  opacity: 0.55;
+  animation: field-float 9s ease-in-out infinite;
+}
+.mk-field__particle--1 { width: 5px; height: 5px; left: 16%; top: 28%; animation-duration: 9s; }
+.mk-field__particle--2 { width: 3px; height: 3px; left: 61%; top: 20%; background: var(--field-leaf-bright); animation-duration: 11s; animation-delay: -3s; }
+.mk-field__particle--3 { width: 4px; height: 4px; left: 79%; top: 44%; animation-duration: 7.5s; animation-delay: -1s; }
+.mk-field__particle--4 { width: 3px; height: 3px; left: 38%; top: 14%; background: var(--field-leaf-bright); animation-duration: 10s; animation-delay: -5s; }
+.mk-field__particle--5 { width: 4px; height: 4px; left: 88%; top: 62%; animation-duration: 8.5s; animation-delay: -2.4s; }
+
+@keyframes field-float {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  50% { transform: translate(6px, -18px); opacity: 0.75; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-field__sweep,
+  .mk-field__particle {
+    animation: none;
+  }
+}

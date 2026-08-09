@@ -1,0 +1,319 @@
+/* =====================================================================
+   MK NEXUS — Rent Module
+   Ported from the standalone Rent Payment site into MK Nexus's own
+   design tokens (tokens.css) — no hardcoded surface/text colors here
+   beyond the semantic states this codebase doesn't otherwise have a
+   token for (paid/success, unpaid/danger, warn), which reuse the one
+   danger tone already established in shell.css and the harvest-gold
+   accent already established for "attention" states elsewhere.
+
+   Table of contents:
+     1. Header / tabs
+     2. Cards, fields, inputs
+     3. Pay view — table + mobile cards
+     4. Report view — toolbar, KPIs, table, mobile cards, badges
+     5. Loader
+     6. Responsive
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. HEADER / TABS
+--------------------------------------------------------------------- */
+.rent-module {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Title block and tabs stacked together (not flung to opposite viewport
+   edges via space-between — with only two short elements that reads as
+   broken, not intentional) and both start from the same RTL edge. */
+.rent-module__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* cross-start in a column flex container under dir="rtl" is the *right* edge */
+  gap: 14px;
+}
+
+.rent-module__eyebrow { color: var(--module-rent); }
+.rent-module__title { font-family: var(--font-display); font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; color: var(--text-primary); margin-top: 6px; }
+.rent-module__subtitle { font-size: 13.5px; color: var(--text-muted); margin-top: 6px; }
+
+.rent-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.rent-tabs--report { margin-bottom: 4px; }
+
+.rent-tab {
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background var(--duration-fast) var(--ease-premium), color var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium);
+}
+.rent-tab:hover { color: var(--text-primary); border-color: var(--line-strong); }
+.rent-tab.is-active { background: var(--accent-soft); border-color: rgba(82, 201, 155, 0.4); color: var(--accent-hover); }
+
+/* ---------------------------------------------------------------------
+   2. CARDS, FIELDS, INPUTS
+--------------------------------------------------------------------- */
+.rent-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  padding: var(--space-5);
+  transition: transform var(--duration-base) var(--ease-premium), border-color var(--duration-base) var(--ease-premium), box-shadow var(--duration-base) var(--ease-premium);
+}
+/* A whisper of the top-edge accent line used across the app's premium
+   surfaces (login card, geo command deck) — ties this module's cards
+   back to the same visual language instead of reading as a plain box. */
+.rent-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--module-rent), transparent);
+  opacity: 0.45;
+}
+
+.rent-search-card { display: flex; flex-direction: column; gap: var(--space-4); width: min(420px, 100%); margin: 12px auto 0; }
+
+.rent-field { display: flex; flex-direction: column; gap: 8px; }
+.rent-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.rent-input-wrap { position: relative; }
+.rent-input-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+  transition: color var(--duration-fast) var(--ease-premium);
+}
+.rent-input-wrap:focus-within .rent-input-icon { color: var(--accent-hover); }
+
+.rent-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium);
+}
+.rent-input--icon { padding-right: 40px; }
+.rent-input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.045); }
+.rent-input::placeholder { color: var(--text-muted); }
+
+.rent-select {
+  width: 100%;
+  padding: 10px 32px 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386988f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 10px center;
+  min-height: 40px;
+  cursor: pointer;
+}
+.rent-select:focus { outline: none; border-color: var(--accent); }
+.rent-select option { background: var(--surface-panel-raised); color: var(--text-primary); }
+
+.rent-search-btn { width: 100%; justify-content: center; }
+.rent-print-btn, .rent-export-btn { margin-bottom: var(--space-4); }
+
+.rent-state-msg { text-align: center; padding: 40px 12px; color: var(--text-muted); font-size: 13.5px; }
+.rent-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 12px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+.rent-empty i { font-size: 34px; opacity: 0.35; }
+
+/* ---------------------------------------------------------------------
+   3. PAY VIEW — TABLE + MOBILE CARDS
+--------------------------------------------------------------------- */
+.rent-table-wrap {
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  overflow: auto;
+}
+
+.rent-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rent-table th {
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--module-rent);
+  background: rgba(82, 201, 155, 0.05);
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+  text-align: center;
+}
+.rent-table td { padding: 10px 14px; color: var(--text-primary); white-space: nowrap; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.rent-table tr:last-child td { border-bottom: none; }
+.rent-table tr:hover td { background: rgba(82, 201, 155, 0.03); }
+
+.rent-owner-cell { color: var(--harvest-gold); font-weight: 600; }
+.rent-muted { color: var(--text-muted); }
+.rent-strong { font-weight: 600; }
+.rent-num { font-weight: 700; color: var(--accent-hover); font-family: var(--font-mono); }
+.rent-danger-text { color: var(--danger); }
+
+.rent-days-ok { color: var(--accent-hover); font-weight: 600; }
+.rent-days-warn { color: var(--harvest-gold); font-weight: 600; }
+.rent-days-crit { color: var(--danger); font-weight: 600; }
+
+.rent-pay-btn { min-height: 40px; padding: 9px 18px; }
+.rent-pay-btn.is-paid { background: linear-gradient(135deg, #1c6b4a, var(--accent-hover)); cursor: default; }
+.rent-pay-btn.is-paid::before { display: none; }
+.rent-pay-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.rent-cards { display: flex; flex-direction: column; gap: 14px; }
+
+.rent-asset-card:hover { transform: translateY(-2px); border-color: rgba(82, 201, 155, 0.22); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24); }
+
+.rent-asset-card__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.rent-asset-card__name { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; color: var(--text-primary); }
+.rent-asset-card__days { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; flex-shrink: 0; }
+.rent-asset-card__days.rent-days-ok { background: rgba(82, 201, 155, 0.12); border: 1px solid rgba(82, 201, 155, 0.28); }
+.rent-asset-card__days.rent-days-warn { background: rgba(227, 181, 103, 0.12); border: 1px solid rgba(227, 181, 103, 0.28); }
+.rent-asset-card__days.rent-days-crit { background: rgba(224, 122, 106, 0.12); border: 1px solid rgba(224, 122, 106, 0.28); }
+
+.rent-asset-card__info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 14px; }
+.rent-asset-card__label { display: block; font-size: 10px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+.rent-asset-card__value { display: block; font-size: 13.5px; color: var(--text-primary); font-weight: 500; }
+.rent-asset-card__value--amount { font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--accent-hover); }
+
+.rent-asset-card__divider { height: 1px; background: var(--line-soft); margin-bottom: 14px; }
+.rent-asset-card__actions { display: flex; flex-direction: column; gap: 10px; }
+.rent-asset-card__actions .rent-asset-card__label { margin-bottom: 2px; }
+
+/* ---------------------------------------------------------------------
+   4. REPORT VIEW — TOOLBAR, KPIS, TABLE, MOBILE CARDS, BADGES
+--------------------------------------------------------------------- */
+.rent-report-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rent-filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rent-filter-row .rent-select { width: auto; min-width: 150px; }
+
+.rent-kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.rent-kpi {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  text-align: center;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  transition: transform var(--duration-base) var(--ease-premium), border-color var(--duration-base) var(--ease-premium), box-shadow var(--duration-base) var(--ease-premium);
+}
+.rent-kpi::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% -10%, rgba(82, 201, 155, 0.14), transparent 60%);
+  pointer-events: none;
+}
+.rent-kpi:hover { transform: translateY(-3px); border-color: rgba(82, 201, 155, 0.28); box-shadow: 0 22px 44px rgba(0, 0, 0, 0.26); }
+
+.rent-kpi__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  margin-bottom: 10px;
+  background: var(--module-rent-soft);
+  color: var(--module-rent);
+  font-size: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.rent-kpi__icon--success { background: var(--success-soft); color: var(--success); }
+.rent-kpi__icon--danger { background: var(--danger-soft); color: var(--danger-text); }
+
+.rent-kpi__label { display: block; font-family: var(--font-mono); font-size: 9.5px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.rent-kpi__value { display: block; font-family: var(--font-display); font-size: clamp(20px, 2.4vw, 28px); font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.rent-kpi__value--success { color: var(--success); }
+.rent-kpi__value--danger { color: var(--danger); }
+
+.rent-badge { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.rent-badge--paid { background: var(--success-soft); color: var(--success); border: 1px solid rgba(82, 201, 155, 0.3); }
+.rent-badge--unpaid { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(224, 122, 106, 0.3); }
+
+.rent-report-card.is-paid { border-color: rgba(82, 201, 155, 0.25); }
+.rent-report-card.is-unpaid { border-color: rgba(224, 122, 106, 0.25); }
+.rent-report-card:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24); }
+.rent-report-card__top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; }
+.rent-report-card__name { font-weight: 700; font-size: 14px; color: var(--text-primary); }
+.rent-report-card__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+
+/* ---------------------------------------------------------------------
+   5. LOADER
+--------------------------------------------------------------------- */
+.rent-loader {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+.rent-spinner { width: 52px; height: 52px; position: relative; }
+.rent-spinner::before, .rent-spinner::after { content: ''; position: absolute; border-radius: 50%; border: 3px solid transparent; }
+.rent-spinner::before { inset: 0; border-top-color: var(--accent); animation: rent-spin 0.8s linear infinite; }
+.rent-spinner::after { inset: 7px; border-top-color: var(--harvest-gold); animation: rent-spin 1.2s linear infinite reverse; }
+@keyframes rent-spin { to { transform: rotate(360deg); } }
+.rent-loader-text { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--text-secondary); }
+
+/* ---------------------------------------------------------------------
+   6. RESPONSIVE — desktop table vs. mobile cards, same breakpoint as
+   the source site (768px).
+--------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .rent-table-wrap--desktop { display: none; }
+  .rent-cards--mobile { display: flex; }
+}
+@media (min-width: 768px) {
+  .rent-cards--mobile { display: none; }
+}
+
+@media (max-width: 640px) {
+  .rent-module__header { flex-direction: column; }
+  .rent-report-toolbar { flex-direction: column; align-items: stretch; }
+  .rent-export-btn { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rent-spinner::before, .rent-spinner::after { animation: none; }
+}

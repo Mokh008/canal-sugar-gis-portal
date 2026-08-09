@@ -1,0 +1,187 @@
+/* =====================================================================
+   MK NEXUS — Attendance Module
+   Same porting approach, token usage, and card language (top-accent
+   line, KPI icon chips, hover lift) as rent-module.css/expenses-module.css
+   — see rent-module.css's header comment for the shared rationale.
+
+   Table of contents:
+     1. Header / date bar
+     2. KPI strip
+     3. Charts
+     4. Department cards — split boxes, attendance rows, name chips
+     5. Responsive
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. HEADER / DATE BAR
+--------------------------------------------------------------------- */
+.attendance-module { display: flex; flex-direction: column; gap: var(--space-5); height: 100%; overflow-y: auto; }
+
+.attendance-module__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* cross-start in a column flex container under dir="rtl" is the *right* edge */
+  gap: 10px;
+}
+.attendance-module__eyebrow { color: var(--module-attendance); }
+.attendance-module__title { font-family: var(--font-display); font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; color: var(--text-primary); margin-top: 6px; }
+.attendance-module__subtitle { font-size: 13.5px; color: var(--text-muted); margin-top: 6px; }
+.attendance-module__badge { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); }
+
+.attendance-datebar { display: flex; align-items: center; gap: 10px; color: var(--text-muted); }
+.attendance-date-input {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 44px;
+  transition: border-color var(--duration-fast) var(--ease-premium);
+}
+.attendance-date-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.attendance-date-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+
+/* ---------------------------------------------------------------------
+   2. KPI STRIP — same recipe as .rent-kpi/.expenses-kpi
+--------------------------------------------------------------------- */
+.attendance-kpi-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; transition: opacity var(--duration-fast) var(--ease-premium); }
+.attendance-kpi-strip.is-loading { opacity: 0.55; pointer-events: none; }
+.attendance-kpi {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  text-align: center;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  transition: transform var(--duration-base) var(--ease-premium), border-color var(--duration-base) var(--ease-premium), box-shadow var(--duration-base) var(--ease-premium);
+}
+.attendance-kpi::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% -10%, rgba(82, 201, 155, 0.14), transparent 60%);
+  pointer-events: none;
+}
+.attendance-kpi:hover { transform: translateY(-3px); border-color: rgba(82, 201, 155, 0.28); box-shadow: 0 22px 44px rgba(0, 0, 0, 0.26); }
+
+.attendance-kpi__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  margin-bottom: 10px;
+  background: var(--module-attendance-soft);
+  color: var(--module-attendance);
+  font-size: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.attendance-kpi__icon--success { background: var(--success-soft); color: var(--success); }
+.attendance-kpi__icon--danger { background: var(--danger-soft); color: var(--danger-text); }
+
+.attendance-kpi__label { display: block; font-family: var(--font-mono); font-size: 9.5px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.attendance-kpi__value { display: block; font-family: var(--font-display); font-size: clamp(22px, 3vw, 34px); font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.attendance-kpi__value--success { color: var(--success); }
+.attendance-kpi__value--danger { color: var(--danger); }
+
+/* ---------------------------------------------------------------------
+   3. CHARTS
+--------------------------------------------------------------------- */
+.attendance-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  padding: var(--space-5);
+  transition: transform var(--duration-base) var(--ease-premium), border-color var(--duration-base) var(--ease-premium), box-shadow var(--duration-base) var(--ease-premium);
+}
+.attendance-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--module-attendance), transparent);
+  opacity: 0.45;
+}
+
+.attendance-charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.attendance-chart-card canvas { width: 100% !important; }
+
+/* ---------------------------------------------------------------------
+   4. DEPARTMENT CARDS
+--------------------------------------------------------------------- */
+.attendance-dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr)); gap: var(--space-4); }
+
+.attendance-dept-card__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.attendance-split { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.attendance-split--out { margin-top: 12px; }
+
+.attendance-inner-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  font-size: 13px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.attendance-inner-box b {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--module-attendance);
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.attendance-row { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px dashed var(--line-soft); }
+.attendance-row:last-child { border-bottom: none; }
+.attendance-row__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.attendance-row__name { font-weight: 700; font-size: 13px; color: var(--text-primary); flex: 1; min-width: 0; }
+.attendance-row__time {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #04140f;
+  background: var(--accent-gradient);
+  padding: 3px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.attendance-row__loc { color: var(--harvest-gold); font-size: 12px; line-height: 1.4; word-break: break-word; overflow-wrap: break-word; }
+
+.attendance-name-chip { display: block; padding: 4px 0; color: var(--text-secondary); font-size: 13px; font-weight: 500; border-bottom: 1px dashed rgba(255, 255, 255, 0.04); }
+.attendance-name-chip:last-child { border-bottom: none; }
+
+.attendance-empty-hint { color: var(--text-muted); font-size: 12px; }
+
+/* ---------------------------------------------------------------------
+   5. RESPONSIVE
+--------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .attendance-charts-grid { grid-template-columns: 1fr; }
+  .attendance-split { grid-template-columns: 1fr; }
+  .attendance-dept-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .attendance-kpi__value { font-size: 22px; }
+}
