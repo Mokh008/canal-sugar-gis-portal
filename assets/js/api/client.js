@@ -38,7 +38,13 @@ MKNexus.ApiClient = (function () {
     const url = new URL(config.baseUrl);
     url.searchParams.set('action', action);
     const sessionToken = sessionStorage.getItem(config.sessionStorageKey) || localStorage.getItem(config.sessionStorageKey);
-    if (sessionToken) url.searchParams.set('sessionToken', sessionToken);
+    // Wire field name is `token`, matching the backend's auth.gs
+    // (authenticateRequest_/handleValidateSession_/handleLogout_ all
+    // read context.params.token — never `sessionToken`, which is only
+    // this file's own localStorage KEY name, not a wire field). Every
+    // authenticated request was silently sending the token under a name
+    // the backend never looked for.
+    if (sessionToken) url.searchParams.set('token', sessionToken);
     Object.entries(params || {}).forEach(([key, value]) => {
       if (value === undefined || value === null) return;
       url.searchParams.set(key, typeof value === 'string' ? value : JSON.stringify(value));
@@ -71,7 +77,8 @@ MKNexus.ApiClient = (function () {
 
     try {
       const sessionToken = sessionStorage.getItem(config.sessionStorageKey) || localStorage.getItem(config.sessionStorageKey);
-      const body = { action, ...params, ...(sessionToken ? { sessionToken } : {}) };
+      // See createUrl() above — `token` matches the backend's expected field name.
+      const body = { action, ...params, ...(sessionToken ? { token: sessionToken } : {}) };
       const response = await fetch(requestMethod === 'GET' ? createUrl(action, params) : createUrl(action, {}), {
         method: requestMethod,
         // Apps Script web apps don't implement doOptions(), so a POST sent

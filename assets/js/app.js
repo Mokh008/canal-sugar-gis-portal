@@ -250,6 +250,13 @@
   // user back at the login gate, instead of the previous no-op that left
   // an authenticated session sitting in storage indefinitely.
   function logout() {
+    // Best-effort server-side revocation (see backend/mk-nexus-core's
+    // handleLogout_) — fire and forget. A network failure or an already-
+    // expired session shouldn't block the local logout below; the token
+    // is being deleted from local storage regardless, and the server-
+    // side copy will still expire on its own TTL if this call fails.
+    MKNexus.ApiClient?.logout?.().catch(() => {});
+
     try {
       const key = MKNexus.ApiConfig.sessionStorageKey;
       sessionStorage.removeItem(key);

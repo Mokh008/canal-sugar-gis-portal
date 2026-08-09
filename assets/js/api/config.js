@@ -4,7 +4,7 @@ window.MKNexus = window.MKNexus || {};
 MKNexus.ApiConfig = Object.freeze({
   baseUrl: 'https://script.google.com/macros/s/AKfycbwTaf3lzeYVuE4AwOERfckSW4IgoiI_ESHeBZcsu0sNXdfZNegLMwOVtL4w7wNGnGCJBA/exec',
   actions: Object.freeze([
-    'login', 'validateSession',
+    'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
     'getKPIs', 'getKPIAggregate', 'getPresentation', 'getSettings', 'getUsers', 'getAuditLog',
     'createGovernorate', 'updateGovernorate', 'deleteGovernorate',
