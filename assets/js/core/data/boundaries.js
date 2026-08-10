@@ -6,6 +6,16 @@ MKNexus.Boundaries = (function () {
   const STORAGE_KEY = 'mknexus_boundaries_v2';
   const TYPES = ['governorate-group', 'administration', 'district', 'agricultural-zone'];
 
+  // This app's internal type strings vs. the backend's CONFIG.ENTITY_TYPES
+  // enum (mk-nexus-core/config.gs) — every GeoJSON action (createGeoJSON/
+  // updateGeoJSON/getPolygon) validates EntityType against this exact set.
+  const BACKEND_ENTITY_TYPE = {
+    'governorate-group': 'Governorate',
+    administration: 'Administration',
+    district: 'District',
+    'agricultural-zone': 'Agricultural_Zone',
+  };
+
   function loadAll() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -101,12 +111,19 @@ MKNexus.Boundaries = (function () {
     if (entity.geometry) return entity;
     try {
       // BUG FIX: confirmed live — getPolygon's validateIdParam_ reads the
-      // id specifically as `entityId` (camelCase); every other casing
-      // sent here was silently ignored, so this always failed with
-      // "Required parameter "entityId" is missing." Kept the other
-      // casings too since it's cheap and this action's exact param name
-      // was never documented anywhere.
-      const data = await MKNexus.ApiClient.getPolygon({ entityId: entity.id, BoundaryID: entity.id, boundaryId: entity.id, id: entity.id });
+      // id specifically as `entityId` (camelCase) AND separately requires
+      // `entityType` (also camelCase, and one of BACKEND_ENTITY_TYPE's
+      // values — this app's own 'governorate-group' etc. never matches).
+      // Every other casing/value sent here was silently ignored, so this
+      // always failed. Kept the extra id casings since they're cheap and
+      // this action's exact contract was never documented anywhere.
+      const data = await MKNexus.ApiClient.getPolygon({
+        entityId: entity.id,
+        entityType: BACKEND_ENTITY_TYPE[entity.type] || entity.type,
+        BoundaryID: entity.id,
+        boundaryId: entity.id,
+        id: entity.id,
+      });
       const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
       return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
     } catch (error) {
