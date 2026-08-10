@@ -28,6 +28,17 @@ const PER_DIEM_RATE_PER_DAY = 200;
 const MAX_TRANSPORT_PER_DAY = 2000;
 const MAX_ELECTRICITY_AMOUNT = 100000;
 
+// BUG FIX: assets/js/modules/expenses.js's admin Report view has always
+// called `action=getExpensesReport` (see api/expenses-client.js), but this
+// backend never implemented it — every call landed on the `Invalid GET`
+// fallback below, which the frontend correctly reads as "not an array" and
+// shows as "⚠️ أضف action=getExpensesReport في الـ Apps Script أولاً"
+// instead of a report. That's also why the month dropdown was empty: it's
+// built from the report rows' `.month` values, and there were none. Fixed
+// by adding the action (see getExpensesReport() below). Must match
+// assets/js/api/expenses-config.js's reportAdminKey exactly.
+const EXPENSES_REPORT_ADMIN_KEY = "mk_admin_2025";
+
 /************************************************
  * WEB APP
  ************************************************/
@@ -48,6 +59,16 @@ function doGet(e) {
     // Attendance backend already has is the natural fit) — flagged
     // here rather than silently left undocumented.
     return jsonOutput(getAttendanceDays(id, month));
+  }
+
+  if (e.parameter.action === "getExpensesReport") {
+    // Same (weak, client-visible) gate as Rent's report endpoint — see
+    // backend/expenses/README.md's "Still open" section for why this
+    // isn't real authorization.
+    if (String(e.parameter.adminKey || "") !== EXPENSES_REPORT_ADMIN_KEY) {
+      return jsonOutput({ error: "Unauthorized" });
+    }
+    return jsonOutput(getExpensesReport());
   }
 
   return jsonOutput({ error: "Invalid GET" });
@@ -136,6 +157,52 @@ function getAttendanceDays(empId, month) {
         "Wednesday","Thursday","Friday","Saturday"
       ][new Date(k).getDay()]
     }));
+}
+
+/************************************************
+ * ADMIN REPORT
+ * Expenses_Data gets one appendRow() per entry type from saveExpense()
+ * above ("Per Diem" / "Transportation" / "Electricity" — never a combined
+ * row), so the report is naturally one output row per stored entry.
+ * Columns (0-based, matching saveExpense()'s appendRow order):
+ *   0 n · 1 id · 2 empName · 3 amount · 4 type · 5 month · 6 refNo · 7 dateStr (electricity only)
+ *
+ * NOTE: `month` is stored as a bare 1–12 number with no year (that's how
+ * the frontend's month <select> has always sent it — see
+ * modules/expenses.js's template()) — a pre-existing limitation, not
+ * something introduced here. Reports spanning more than one calendar year
+ * for the same month number will merge under one label until a real
+ * year column is added.
+ ************************************************/
+function getExpensesReport() {
+  const sh = SpreadsheetApp.openById(EXPENSES_SPREADSHEET_ID).getSheetByName("Expenses_Data");
+  if (!sh || sh.getLastRow() < 2) return [];
+
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const typeLabels = { "Per Diem": "إعاشة", "Transportation": "انتقال", "Electricity": "كهرباء" };
+
+  return rows
+    .filter((r) => String(r[1] || "").trim() !== "")
+    .map((r) => {
+      const id = r[1];
+      const empName = r[2];
+      const amount = Number(r[3]) || 0;
+      const type = r[4];
+      const month = r[5];
+      const refNo = r[6];
+      return {
+        engineerId: id,
+        engineerName: empName,
+        month: String(month || "").padStart(2, "0"),
+        daysCount: type === "Per Diem" ? Math.round(amount / PER_DIEM_RATE_PER_DAY) : "",
+        expenseType: typeLabels[type] || type || "",
+        livingAmount: type === "Per Diem" ? amount : 0,
+        transportAmount: type === "Transportation" ? amount : 0,
+        electricityAmount: type === "Electricity" ? amount : 0,
+        totalAmount: amount,
+        submittedAt: refNo || "",
+      };
+    });
 }
 
 /************************************************

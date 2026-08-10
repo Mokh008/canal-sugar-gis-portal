@@ -3,9 +3,29 @@
 Mirrors the Apps Script project behind `assets/js/api/expenses-config.js`'s
 `webAppUrl`. Paste `Code.gs` into that project, replacing the existing
 file — every function name and the PDF-generation logic are preserved
-exactly, only the two sections below actually changed behavior.
+exactly, only the sections below actually changed behavior.
 
 ## Fixed now
+
+**Bug — admin Report tab showed no data and an empty month dropdown.**
+The frontend (`modules/expenses.js`, `api/expenses-client.js`) has always
+called `action=getExpensesReport`, but this backend never implemented
+it — every call fell through to the `Invalid GET` response, which reads
+to the frontend as "not an array" and shows the config-warning message
+instead of a report (and since the month `<select>` is built from the
+report rows themselves, no rows meant no months either). Added
+`getExpensesReport()` — reads every row `saveExpense()` has ever
+appended to `Expenses_Data` (one row per Per Diem/Transportation/
+Electricity entry) and reshapes it into what the report view expects,
+gated by the same `adminKey` the frontend already sends. See the code
+comment above `getExpensesReport()` for the one known limitation this
+carries over unchanged: `month` is stored as a bare 1–12 number with no
+year, so multi-year reports for the same month number will merge under
+one label until a real year column is added — worth fixing at the
+source (the month `<select>` in `modules/expenses.js`) if this becomes
+a real problem, not something this patch invents a workaround for.
+
+## Fixed earlier
 
 **Critical — client-computed reimbursement total, trusted verbatim.**
 `saveExpense()` used to read `Number(d.total) || 0` straight from the

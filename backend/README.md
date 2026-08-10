@@ -11,7 +11,7 @@ into its Apps Script editor (or push via `clasp` if you use it).
 | `mk-nexus-core/` | `assets/js/api/config.js`'s `baseUrl` (Geo Intelligence: login, boundaries, KPIs, users, audit) | ✅ Reviewed & fixed |
 | `expenses/` | `assets/js/api/expenses-config.js`'s `webAppUrl` | ✅ Reviewed & fixed |
 | `rent/` | `assets/js/api/rent-config.js`'s `paymentUrl` only | ✅ Reviewed & fixed |
-| — | `rent-config.js`'s `reportUrl` (separate deployment, admin report) | ⏳ Source not shared |
+| `rent-report/` | `rent-config.js`'s `reportUrl` (separate deployment, admin report) | 🆕 `getRentReport` was never implemented there at all — this is a new standalone addition, written without ever having seen that project's actual source (see `rent-report/README.md` for the assumptions it makes); merge by hand, don't paste-overwrite |
 | `attendance/` | `assets/js/api/attendance-config.js`'s `webAppUrl` | ⏳ Waiting on the current source — the file initially shared for this turned out to be outdated |
 
 ## Priority order, across everything reviewed
@@ -38,6 +38,13 @@ into its Apps Script editor (or push via `clasp` if you use it).
    implies one might, via its own `login(id, pin)` action). Detailed in
    both READMEs' "Still open" sections with concrete options — happy to
    implement once you pick one.
+6. **Bug (not a security item) — both admin Report tabs (Rent, Expenses)
+   loaded no data and an empty month dropdown**, because the
+   `getRentReport`/`getExpensesReport` actions the frontend has always
+   called were never implemented on either live deployment (confirmed by
+   calling both directly — each returned an `Invalid action`/`Invalid
+   GET` error, not report data). Implemented in `expenses/Code.gs` and
+   new `rent-report/Code.gs` — see those two READMEs.
 
 ## What wasn't touched, and why
 

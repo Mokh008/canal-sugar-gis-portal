@@ -125,6 +125,24 @@ MKNexus.Boundaries = (function () {
       Promise.allSettled(requests),
       Promise.allSettled(masterRequests),
     ]);
+    const allSettled = [...results, ...masterResults];
+    const rejected = allSettled.filter((result) => result.status === 'rejected');
+    // Every one of these was Promise.allSettled'd specifically so one bad
+    // request (e.g. getZones) doesn't block the others — but that also
+    // meant a *total* failure (all of them rejected — expired/missing
+    // session token, network down, wrong API URL) was completely silent:
+    // the map would just quietly keep showing whatever was already in
+    // localStorage (nothing, on a browser that's never loaded this app
+    // before) with no error anywhere. Surfacing it here is what makes
+    // "boundaries aren't showing" diagnosable from the browser console /
+    // a toast instead of looking identical to "there's just no data yet".
+    if (rejected.length && rejected.length === allSettled.length) {
+      const reasons = rejected.map((result) => result.reason?.message || String(result.reason));
+      console.error('[MK Nexus] Boundary hydration failed completely — every governorate/administration/district/zone request was rejected:', reasons);
+      MKNexus.Toast?.error(`Couldn't load map boundaries from the server: ${reasons[0] || 'unknown error'}`, { duration: 8000 });
+    } else if (rejected.length) {
+      console.warn('[MK Nexus] Boundary hydration partially failed:', rejected.map((result) => result.reason?.message || String(result.reason)));
+    }
     const remote = results.flatMap((result) => result.status === 'fulfilled' ? unwrapRows(result.value) : []).map(normalizeBoundary).filter(Boolean);
     const masters = masterResults.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
     const byId = new Map(store.map((boundary) => [boundary.id, boundary]));
@@ -140,6 +158,56 @@ MKNexus.Boundaries = (function () {
 
   function featureFor(boundary) {
     return toFeatureCollection([boundary]).features[0];
+  }
+
+  // BUG FIX: createGeoJSON/updateGeoJSON go through this dedicated request
+  // instead of the generic MKNexus.ApiClient — confirmed live (by calling
+  // the backend directly) that its validateIdParam_ check
+  // (mk-nexus-core/validation.gs) reads EntityID from the URL query string
+  // (context.params / e.parameter), not the JSON POST body. ApiClient's
+  // generic POST helper (api/client.js) only ever puts write-action
+  // fields in the body — so every polygon drawn/edited through the GIS
+  // Editor has always failed this check server-side and never actually
+  // reached the backend; it only ever lived in this browser's
+  // localStorage (see this file's header comment). `Geometry` (not the
+  // `Polygon` key this used to send) is also JSON.stringify'd here
+  // because the backend's validateJsonString_ parses it expecting a JSON
+  // *string*, not a nested object.
+  //
+  // This same "ID belongs in the URL, not just the body" contract likely
+  // affects other write actions too (createGovernorate, updateAdministration,
+  // etc. all funnel through the same validateIdParam_) — not changed here
+  // since it wasn't verified against a live failure the way this one was;
+  // worth testing if those turn out to have the same silent-failure issue.
+  function postGeoJSON_(action, { entityId, entityType, geometry, center, area, version }) {
+    const config = MKNexus.ApiConfig;
+    const url = new URL(config.baseUrl);
+    url.searchParams.set('action', action);
+    const token = sessionStorage.getItem(config.sessionStorageKey) || localStorage.getItem(config.sessionStorageKey);
+    if (token) url.searchParams.set('token', token);
+    if (entityId != null) url.searchParams.set('EntityID', String(entityId));
+    const body = {
+      action,
+      ...(token ? { token } : {}),
+      ...(entityId != null ? { EntityID: String(entityId) } : {}),
+      EntityType: entityType,
+      Geometry: JSON.stringify(geometry),
+      Center: center,
+      Area: area,
+      Version: version,
+    };
+    return fetch(url.toString(), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      credentials: 'omit',
+    }).then((response) => {
+      if (!response.ok) throw new Error(`Backend request failed with HTTP ${response.status}.`);
+      return response.json();
+    }).then((payload) => {
+      if (!payload || payload.success === false) throw new Error(payload?.message || 'Backend request failed.');
+      return payload.data;
+    });
   }
 
   // Every write here is optimistic: the local cache (and localStorage) is
@@ -221,14 +289,26 @@ MKNexus.Boundaries = (function () {
     const next = { geometry, center, area, version, updatedAt: new Date().toISOString() };
     Object.assign(boundary, next);
     persist();
-    sync(MKNexus.ApiClient.updateGeoJSON, 'updateGeoJSON', {
-      BoundaryID: String(id),
-      EntityType: entityType,
-      Polygon: geometry,
-      Center: center,
-      Area: area,
-      Version: version,
-    }, boundary.name).catch(() => {});
+    sync(
+      // The backend only accepts updateGeoJSON once a GeoJSON row already
+      // exists for this entity — confirmed live: it rejects with "No
+      // existing geometry for <Type> "<ID>". Use createGeoJSON first."
+      // otherwise. Every boundary's very first sync ever attempted was a
+      // createGeoJSON call that failed silently from the same EntityID
+      // bug fixed above, so nothing has a row yet — this fallback makes
+      // the first successful sync for each entity self-heal (create) and
+      // every one after that a normal update, with no separate manual
+      // "create" pass needed.
+      (payload) => postGeoJSON_('updateGeoJSON', payload).catch((error) => {
+        if (/use createGeoJSON first/i.test(error.message || '')) {
+          return postGeoJSON_('createGeoJSON', payload);
+        }
+        throw error;
+      }),
+      'updateGeoJSON',
+      { entityId: id, entityType, geometry, center, area, version },
+      boundary.name
+    ).catch(() => {});
     return boundary;
   }
 
