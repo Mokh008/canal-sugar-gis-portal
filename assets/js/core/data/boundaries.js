@@ -100,7 +100,13 @@ MKNexus.Boundaries = (function () {
   async function getEntityWithGeometry(entity) {
     if (entity.geometry) return entity;
     try {
-      const data = await MKNexus.ApiClient.getPolygon({ BoundaryID: entity.id, boundaryId: entity.id, id: entity.id });
+      // BUG FIX: confirmed live — getPolygon's validateIdParam_ reads the
+      // id specifically as `entityId` (camelCase); every other casing
+      // sent here was silently ignored, so this always failed with
+      // "Required parameter "entityId" is missing." Kept the other
+      // casings too since it's cheap and this action's exact param name
+      // was never documented anywhere.
+      const data = await MKNexus.ApiClient.getPolygon({ entityId: entity.id, BoundaryID: entity.id, boundaryId: entity.id, id: entity.id });
       const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
       return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
     } catch (error) {
