@@ -153,7 +153,41 @@ MKNexus.Boundaries = (function () {
     });
     remote.forEach((boundary) => byId.set(boundary.id, { ...byId.get(boundary.id), ...boundary, name: byId.get(boundary.id)?.name || boundary.name }));
     if (masters.length || remote.length) replaceAll(Array.from(byId.values()));
+
+    // BUG FIX: getGovernorates/getAdministrations/getDistricts never
+    // include Geometry inline (confirmed live) — only the per-entity
+    // getPolygon action returns it. Every boundary drawn/edited before
+    // now only ever showed up on the map because this browser already had
+    // it cached in localStorage from an earlier session; a browser
+    // loading this app for the first time got zero boundary outlines no
+    // matter what's actually stored server-side. Backfilling here (once,
+    // for whatever the bulk fetch above left without geometry) is what
+    // makes a cold cache work at all.
+    const missingGeometry = getAll().filter((b) => !b.geometry && TYPES.includes(b.type) && b.type !== 'agricultural-zone');
+    if (missingGeometry.length) await backfillGeometry_(missingGeometry);
+
     return getAll();
+  }
+
+  // Limited concurrency instead of firing every getPolygon request at
+  // once — a cold cache can mean 30+ boundaries needing a backfill
+  // simultaneously, and Apps Script enforces a per-user concurrent
+  // execution quota that a full burst would trip.
+  async function backfillGeometry_(boundaries) {
+    const CONCURRENCY = 4;
+    let cursor = 0;
+    async function worker() {
+      while (cursor < boundaries.length) {
+        const boundary = boundaries[cursor++];
+        try {
+          const resolved = await getEntityWithGeometry(boundary);
+          if (resolved.geometry) upsertEntity(resolved);
+        } catch (error) {
+          console.warn(`[MK Nexus] Geometry backfill failed for ${boundary.id}: ${error.message}`);
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, boundaries.length) }, worker));
   }
 
   function featureFor(boundary) {
