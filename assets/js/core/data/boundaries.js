@@ -122,6 +122,27 @@ MKNexus.Boundaries = (function () {
   // error (wrong id, 401, etc.) will just fail the same way again.
   const GEOMETRY_RETRY_DELAYS_MS = [1500, 3000];
 
+  // BUG FIX: confirmed live — the backend has zero saved GeoJSON rows for
+  // any of these entities at all (getPolygon returns `versionCount: 0,
+  // active: null` for every one of them, fast and with no error — this
+  // isn't a network/timeout problem, there's just nothing to return yet).
+  // Every boundary ever drawn/edited only ever reached localStorage, never
+  // the backend (see the postGeoJSON_ header comment below for why). Until
+  // someone re-saves each boundary through the GIS Editor (which does sync
+  // correctly now), a cold browser has no server-side source of truth to
+  // fall back on — hence assets/js/core/data/boundaries-seed.js, a static
+  // copy of known-good shapes bundled with the frontend itself. This is
+  // only ever a last resort, tried after the backend lookup — a boundary
+  // someone has actually saved to the backend always wins over the bundled
+  // copy, so edits in the Editor still take effect for every browser once
+  // they sync.
+  function seedGeometryFor(entity) {
+    const seeded = MKNexus.BoundariesSeed?.[entity.id];
+    if (!seeded) return null;
+    console.info(`[MK Nexus] Backend has no saved geometry for ${entity.id} yet — using the bundled fallback shape.`);
+    return { ...entity, ...seeded };
+  }
+
   async function getEntityWithGeometry(entity) {
     if (entity.geometry) return entity;
     for (let attempt = 0; ; attempt++) {
@@ -141,12 +162,13 @@ MKNexus.Boundaries = (function () {
           id: entity.id,
         });
         const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
-        return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
+        if (polygon) return { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId };
+        return seedGeometryFor(entity) || entity;
       } catch (error) {
         const canRetry = error?.code === 'TIMEOUT' && attempt < GEOMETRY_RETRY_DELAYS_MS.length;
         if (!canRetry) {
           console.warn(`[MK Nexus] Polygon lookup failed for ${entity.id}: ${error.message}`);
-          return entity;
+          return seedGeometryFor(entity) || entity;
         }
         console.warn(`[MK Nexus] Polygon lookup timed out for ${entity.id}, retrying (attempt ${attempt + 2}/${GEOMETRY_RETRY_DELAYS_MS.length + 1})…`);
         await sleep_(GEOMETRY_RETRY_DELAYS_MS[attempt]);
