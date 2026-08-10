@@ -10,7 +10,7 @@ window.MKNexus = window.MKNexus || {};
 MKNexus.RentConfig = Object.freeze({
   // Engineer-facing: list assets for an engineer ID, confirm a payment,
   // generate a receipts PDF.
-  paymentUrl: 'https://script.google.com/macros/s/AKfycbyixFl0gSyLbqnzLwjbW7a5UWA7PCohqfqxQeApCef3GJE3q4ItvHh2KZvlWpuW5zEmNA/exec',
+  paymentUrl: 'https://script.google.com/macros/s/AKfycbwbYLiAhTW-MRV_htrUFnFOlkOnQVNIpwXTuAo50hIsgUvuEDhI5tQmYG-X_P_LDUu0og/exec',
   // Admin-facing: full paid/unpaid report across all offices. A different
   // deployment on purpose (matches the source site) — keep them separate
   // rather than merging into one URL.

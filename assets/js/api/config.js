@@ -2,7 +2,7 @@ window.MKNexus = window.MKNexus || {};
 
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
-  baseUrl: 'https://script.google.com/macros/s/AKfycbwTaf3lzeYVuE4AwOERfckSW4IgoiI_ESHeBZcsu0sNXdfZNegLMwOVtL4w7wNGnGCJBA/exec',
+  baseUrl: 'https://script.google.com/macros/s/AKfycbyHBiAlLjf9nzkxmaDJSPILc-nL2JE4CzT0RYKo2N0VKa43wTlNLZkxpk9ml_fSPAhlVw/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
