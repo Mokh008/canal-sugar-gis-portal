@@ -107,28 +107,50 @@ MKNexus.Boundaries = (function () {
     return unwrapRows(data).map((row) => normalizeEntity(row, type)).filter(Boolean);
   }
 
+  const sleep_ = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  // BUG FIX: confirmed live — a cold/idle Apps Script instance can take
+  // longer than the client's 15s timeout to spin up (open the spreadsheet,
+  // etc.), and the *first* hydrate() of a session fires a whole backlog of
+  // these at once (see backfillGeometry_ below) — so that single slow
+  // cold-start window was enough to time out every one of them together
+  // (confirmed live: a fresh session got 0/34 with geometry, all logged as
+  // TIMEOUT, not a per-entity error). A retry after a short pause almost
+  // always lands on an Apps Script instance that's already warm from the
+  // failed attempts, so it succeeds instead of being written off for the
+  // rest of the session. Only retried for TIMEOUT — a real validation/auth
+  // error (wrong id, 401, etc.) will just fail the same way again.
+  const GEOMETRY_RETRY_DELAYS_MS = [1500, 3000];
+
   async function getEntityWithGeometry(entity) {
     if (entity.geometry) return entity;
-    try {
-      // BUG FIX: confirmed live — getPolygon's validateIdParam_ reads the
-      // id specifically as `entityId` (camelCase) AND separately requires
-      // `entityType` (also camelCase, and one of BACKEND_ENTITY_TYPE's
-      // values — this app's own 'governorate-group' etc. never matches).
-      // Every other casing/value sent here was silently ignored, so this
-      // always failed. Kept the extra id casings since they're cheap and
-      // this action's exact contract was never documented anywhere.
-      const data = await MKNexus.ApiClient.getPolygon({
-        entityId: entity.id,
-        entityType: BACKEND_ENTITY_TYPE[entity.type] || entity.type,
-        BoundaryID: entity.id,
-        boundaryId: entity.id,
-        id: entity.id,
-      });
-      const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
-      return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
-    } catch (error) {
-      console.warn(`[MK Nexus] Polygon lookup failed for ${entity.id}: ${error.message}`);
-      return entity;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        // BUG FIX: confirmed live — getPolygon's validateIdParam_ reads the
+        // id specifically as `entityId` (camelCase) AND separately requires
+        // `entityType` (also camelCase, and one of BACKEND_ENTITY_TYPE's
+        // values — this app's own 'governorate-group' etc. never matches).
+        // Every other casing/value sent here was silently ignored, so this
+        // always failed. Kept the extra id casings since they're cheap and
+        // this action's exact contract was never documented anywhere.
+        const data = await MKNexus.ApiClient.getPolygon({
+          entityId: entity.id,
+          entityType: BACKEND_ENTITY_TYPE[entity.type] || entity.type,
+          BoundaryID: entity.id,
+          boundaryId: entity.id,
+          id: entity.id,
+        });
+        const polygon = unwrapRows(data).map((row) => normalizeEntity(row, entity.type)).find((row) => row?.geometry);
+        return polygon ? { ...entity, ...polygon, id: entity.id, type: entity.type, name: entity.name, parentId: entity.parentId } : entity;
+      } catch (error) {
+        const canRetry = error?.code === 'TIMEOUT' && attempt < GEOMETRY_RETRY_DELAYS_MS.length;
+        if (!canRetry) {
+          console.warn(`[MK Nexus] Polygon lookup failed for ${entity.id}: ${error.message}`);
+          return entity;
+        }
+        console.warn(`[MK Nexus] Polygon lookup timed out for ${entity.id}, retrying (attempt ${attempt + 2}/${GEOMETRY_RETRY_DELAYS_MS.length + 1})…`);
+        await sleep_(GEOMETRY_RETRY_DELAYS_MS[attempt]);
+      }
     }
   }
 
@@ -195,9 +217,14 @@ MKNexus.Boundaries = (function () {
   // Limited concurrency instead of firing every getPolygon request at
   // once — a cold cache can mean 30+ boundaries needing a backfill
   // simultaneously, and Apps Script enforces a per-user concurrent
-  // execution quota that a full burst would trip.
+  // execution quota that a full burst would trip. Lowered from 4 to 2
+  // (confirmed live: a cold Apps Script instance can be slow enough that
+  // 4-wide bursts on the very first hydrate() of a session timed out
+  // across the board — see the retry comment in getEntityWithGeometry) —
+  // 2-wide gives a cold instance a better chance to catch up between
+  // requests instead of piling more onto it.
   async function backfillGeometry_(boundaries) {
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 2;
     let cursor = 0;
     async function worker() {
       while (cursor < boundaries.length) {
