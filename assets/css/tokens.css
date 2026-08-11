@@ -167,7 +167,14 @@
   --minimap-radius: 22px;
   --minimap-opacity: 0.96;
   --sidebar-width: clamp(240px, 17vw, 296px);
-  --geo-right-rail: clamp(300px, 22vw, 360px);
+  /* BUG FIX: confirmed live on a large presentation display — the map
+     itself was squeezed into a narrow center strip because the KPI deck
+     (460px, see geo-experience.css) and this rail (was up to 360px) ate
+     most of the width on a screen that's physically big but not
+     necessarily high-resolution (many "big screen" displays still run
+     1080p or less). Trimmed both down; the map is the thing meant to be
+     the hero on a big screen, not the side panels. */
+  --geo-right-rail: clamp(280px, 20vw, 320px);
   --geo-kpi-width: min(360px, 28vw);
   --layout-padding: 24px;
   --layout-gap: 20px;

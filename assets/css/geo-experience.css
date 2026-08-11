@@ -38,7 +38,14 @@
   top: 28px;
   left: 28px;
   z-index: 4;
-  width: min(560px, calc(100% - var(--geo-kpi-width) - 44px));
+  /* BUG FIX: confirmed live on a large presentation display — 560px plus
+     the right rail (tokens.css's --geo-right-rail) left the actual map
+     squeezed into a narrow center strip on a screen that's physically
+     big but not necessarily high-resolution. The map is the hero here,
+     not this card — trimmed the cap; the KPI grid below still adapts
+     (geo-kpi-grid's own responsive columns) at any width this resolves
+     to. */
+  width: min(460px, calc(100% - var(--geo-kpi-width) - 44px));
   max-height: calc(100% - 72px);
   overflow: auto;
   padding: var(--layout-padding);
@@ -585,14 +592,14 @@
 
 /* ---- Responsive -------------------------------------------------------------- */
 @media (max-width: 1200px) {
-  .geo-command-deck { width: min(500px, calc(100% - 320px)); }
+  .geo-command-deck { width: min(420px, calc(100% - 320px)); }
   .geo-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .geo-kpi--hero, .geo-kpi--achievement { grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
   .geo-module__map { inset: 0; }
-  .geo-command-deck { left: 16px; top: 16px; width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+  .geo-command-deck { left: 16px; top: 16px; width: min(420px, calc(100% - 32px)); max-height: calc(100% - 32px); }
   .geo-command-actions { right: 16px; top: 16px; }
   .geo-map-status { right: 16px; bottom: 16px; }
 }

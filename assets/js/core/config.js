@@ -77,7 +77,10 @@ MKNexus.Config = (function () {
     },
     layout: {
       sidebarWidth: 'clamp(240px, 17vw, 296px)',
-      mapRightRail: 'clamp(300px, 22vw, 360px)',
+      // Must match tokens.css's --geo-right-rail default — this file's
+      // applyTheme() runs after CSS loads and overwrites it, so changing
+      // one without the other is a no-op in practice.
+      mapRightRail: 'clamp(280px, 20vw, 320px)',
       kpiWidth: 'min(360px, 28vw)',
       cardSpacing: '14px',
       gridGap: '14px',
