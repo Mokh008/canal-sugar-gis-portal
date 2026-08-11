@@ -4,13 +4,22 @@ Mirrors the Apps Script project behind `assets/js/api/rent-config.js`'s
 **`paymentUrl`** deployment (`getAssets`/`confirmPayment`/`printReceipts`).
 Paste `Code.gs` into that project, replacing the existing file.
 
-**Note:** `rent-config.js` points at a *second*, separate deployment for
-`reportUrl` (the admin `getRentReport` action, gated by the
-`reportAdminKey` already flagged as insecure from the frontend side).
-That second project's source wasn't included in what you shared, so it
-isn't reviewed here — send it over if you'd like it covered too.
-
 ## Fixed now
+
+**Bug — admin Report tab showed no data and an empty month dropdown.**
+`rent-config.js` used to point the admin report (`getRentReport`) at a
+*second*, separate deployment (`reportUrl`) that never implemented that
+action — every call there returned `{"error":"Invalid action"}`, which
+the frontend correctly reads as "backend not configured" (and since the
+month `<select>` is built from the report rows themselves, zero rows
+left it empty too — the exact symptom reported: "التقرير الإداري فاضي +
+الشهور مش ظاهرة"). Rather than maintain a second Apps Script deployment
+of the same workbook, `getRentReport` is now implemented directly in
+*this* file — see the constant/comment above `doGet` and the "✅ NEW:
+ADMIN REPORT" section. Once this is redeployed, point
+`rent-config.js`'s `reportUrl` at the same URL as `paymentUrl` (they can
+be the same deployment now); `backend/rent-report/` is no longer needed
+unless you'd rather keep the report on a separate deployment on purpose.
 
 **Low — basic input hygiene.** Added `validateEngineerId_()` (non-empty,
 trimmed, length-bounded) and a matching check that `assetName` is

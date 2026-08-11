@@ -11,10 +11,13 @@ MKNexus.RentConfig = Object.freeze({
   // Engineer-facing: list assets for an engineer ID, confirm a payment,
   // generate a receipts PDF.
   paymentUrl: 'https://script.google.com/macros/s/AKfycbwbYLiAhTW-MRV_htrUFnFOlkOnQVNIpwXTuAo50hIsgUvuEDhI5tQmYG-X_P_LDUu0og/exec',
-  // Admin-facing: full paid/unpaid report across all offices. A different
-  // deployment on purpose (matches the source site) — keep them separate
-  // rather than merging into one URL.
-  reportUrl: 'https://script.google.com/macros/s/AKfycbymN-eiB6AR8LsK31ssWhYtCSq7uzk2qYU3LVLKkx1HM_OhRxa7zC10zFmj47zFDsaAUg/exec',
+  // Admin-facing: full paid/unpaid report across all offices. Used to be
+  // a second, separate deployment that never implemented getRentReport
+  // (see backend/rent/README.md) — that action now lives directly in the
+  // same project as paymentUrl, so this points at the same URL. If you
+  // ever move the report back to its own deployment, put its URL here
+  // instead.
+  reportUrl: 'https://script.google.com/macros/s/AKfycbwbYLiAhTW-MRV_htrUFnFOlkOnQVNIpwXTuAo50hIsgUvuEDhI5tQmYG-X_P_LDUu0og/exec',
   // The report endpoint's only access control today — a static key baked
   // into the original frontend's source. Pre-existing on the backend side;
   // carried over unchanged, not something introduced or hardened here.

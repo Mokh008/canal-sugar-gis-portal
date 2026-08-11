@@ -1,3 +1,12 @@
+# Rent Admin Report Backend — SUPERSEDED
+
+**`getRentReport` now lives directly in `backend/rent/Code.gs`** (the
+same project as `paymentUrl`), so `reportUrl` can just point at that same
+deployment instead of a second one — one file to paste, like Expenses.
+This folder is only useful if you deliberately want the report on its
+own, separate deployment from `getAssets`/`confirmPayment`/`printReceipts`
+— everything below still applies to that scenario.
+
 # Rent Admin Report Backend — NEW
 
 This covers **`reportUrl`** in `assets/js/api/rent-config.js` — a
