@@ -8,7 +8,10 @@ window.MKNexus = window.MKNexus || {};
    source exactly, including that the submit POST carries no `action`
    field at all — so the real backend keeps working unmodified. */
 MKNexus.ExpensesConfig = Object.freeze({
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbzXZA-cbzZ8oOATtxmLwJCyvsQhxy2Gz9AmgqU_mkcPSyXKxwl8WcCM-KZszgwgRHYp/exec',
+  // Redeployed (new deployment, not "new version" of the old one, hence
+  // the URL change) to ship getExpensesReport() — see
+  // backend/expenses/Code.gs and its README.
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbyy_32N_DivnXIQFM1AciOcmMc3lFEJU1QLy0rGLR2B0wr0ESOtnWTntUscuvqcn9NU/exec',
   // Same pre-existing, backend-side-only access control as the Rent
   // report — carried over unchanged.
   reportAdminKey: 'mk_admin_2025',

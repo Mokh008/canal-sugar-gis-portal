@@ -2,10 +2,13 @@
 
 This covers **`reportUrl`** in `assets/js/api/rent-config.js` — a
 *separate* Apps Script deployment from `backend/rent/Code.gs` (which only
-covers `paymentUrl`). Its existing source was never shared for review, so
-`Code.gs` in this folder is written standalone and needs to be merged into
-that project by hand (don't overwrite blindly if it already has other
-code in it) rather than pasted in wholesale like the other backend fixes.
+covers `paymentUrl`). The only action the frontend ever calls against
+this URL is `getRentReport` (`modules/rent.js` / `api/rent-client.js`),
+so `Code.gs` in this folder is a complete, self-contained file — paste it
+in as a full replacement of whatever's in that project today, the same
+way as `backend/expenses/Code.gs`. (If that project turns out to already
+serve some other, unrelated action too, check first — this file's `doGet`
+doesn't preserve anything it doesn't already know about.)
 
 ## Why this was needed
 
@@ -24,13 +27,14 @@ reported: **"التقرير الإداري فاضي + الشهور مش ظاهر
 - The reportUrl project's *active* spreadsheet has the same
   `Master_Rent_Contracts` / `Rent_Payments` sheets (same names, same
   column layout) as the paymentUrl project reads from in
-  `backend/rent/Code.gs`. This is the most likely setup (one workbook,
-  two deployments reading/writing it), but wasn't verifiable without
-  that project's source — if it turns out to point at a different
-  spreadsheet or different sheet/column names, adjust
+  `backend/rent/Code.gs` — confirmed live against the real
+  `Rent_Payments` sheet (`Receipt_ID, Engineer_ID, OWNER_NAME,
+  AMOUNT_TEXT, OWNER_NATIONAL_ID, Asset_Name, Month, PAYMENT_DATE,
+  PDF_URL, Department, Engineer_Name, Month_Key`), which matches the
+  positional reads in `getRentReport()` exactly. If this ever points at
+  a different spreadsheet or different sheet/column names, adjust
   `RENT_REPORT_MASTER_SHEET`/`RENT_REPORT_PAYMENTS_SHEET` at the top of
-  `Code.gs` (or send over the actual project source and this gets
-  tailored to match exactly).
+  `Code.gs`.
 - Report rows cover a rolling 19-month window (6 months back / 12
   ahead of today) — the same window `modules/rent.js`'s `MONTHS_LIST`
   generates client-side for the "pay" month picker, so the two never

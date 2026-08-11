@@ -1,52 +1,61 @@
 /***************************************
- * RENT ADMIN REPORT — NEW FILE
+ * RENT ADMIN REPORT BACKEND
  *
- * This is NOT the same Apps Script project as backend/rent/Code.gs.
- * rent-config.js points at TWO separate deployments:
- *   - paymentUrl  -> backend/rent/Code.gs (getAssets/confirmPayment/printReceipts)
- *   - reportUrl   -> THIS project (admin getRentReport action)
- * The reportUrl project's existing source was never shared for review,
- * so it isn't known whether it already contains other code. Paste the
- * functions below into that project (merge with whatever's already
- * there — don't overwrite blindly if it has other content), adding the
- * `getRentReport` branch to its doGet(). If that project turns out not
- * to use the same spreadsheet/sheet names as backend/rent/Code.gs
- * (MASTER_SHEET = "Master_Rent_Contracts", PAYMENTS_SHEET =
- * "Rent_Payments", both on the script's *active* spreadsheet), adjust
- * the two constants below to match reality.
+ * This is the entire Apps Script project behind rent-config.js's
+ * `reportUrl` — a *separate* deployment from backend/rent/Code.gs
+ * (paymentUrl, which handles getAssets/confirmPayment/printReceipts).
+ * The only action the frontend ever calls against this URL is
+ * `getRentReport` (see modules/rent.js / api/rent-client.js), so this
+ * file is safe to paste in as a full replacement of whatever's in that
+ * project today — same as backend/expenses/Code.gs.
  *
- * Why this was needed: the frontend (modules/rent.js, api/rent-client.js)
- * has always called `action=getRentReport` against reportUrl, but that
- * action doesn't exist there today — confirmed live: hitting reportUrl
- * with `?action=getRentReport&adminKey=mk_admin_2025` currently returns
- * `{"error":"Invalid action"}`. The frontend correctly reads that
- * non-array response as "backend not configured" and shows the
- * config-warning message instead of a report; since the month <select>
- * is built from the report rows' `.month` values, zero rows also meant
- * an empty month dropdown. That's exactly the "التقرير الإداري فاضي +
- * الشهور مش ظاهرة" symptom.
+ * Reads the *active* spreadsheet's Master_Rent_Contracts and
+ * Rent_Payments sheets (same names/columns backend/rent/Code.gs uses) —
+ * confirmed live against the real sheet: Rent_Payments columns are
+ * Receipt_ID(0), Engineer_ID(1), OWNER_NAME(2), AMOUNT_TEXT(3),
+ * OWNER_NATIONAL_ID(4), Asset_Name(5), Month(6), PAYMENT_DATE(7),
+ * PDF_URL(8), Department(9), Engineer_Name(10), Month_Key(11) — matches
+ * the positional reads in getRentReport() below exactly. If this
+ * deployment's script-bound spreadsheet ever turns out to be a
+ * different workbook than the one paymentUrl uses, or the sheet/column
+ * names differ, adjust RENT_REPORT_MASTER_SHEET/RENT_REPORT_PAYMENTS_SHEET
+ * below to match.
+ *
+ * Why this was needed: hitting reportUrl with
+ * `?action=getRentReport&adminKey=mk_admin_2025` used to return
+ * `{"error":"Invalid action"}` — the action the frontend has always
+ * called simply wasn't implemented on that deployment. The frontend
+ * correctly read that non-array response as "backend not configured"
+ * and showed a warning instead of a report; since the month <select> is
+ * built from the report rows' `.month` values, zero rows also left the
+ * month dropdown empty — the exact symptom reported:
+ * "التقرير الإداري فاضي + الشهور مش ظاهرة".
  ***************************************/
 
 const RENT_REPORT_MASTER_SHEET = "Master_Rent_Contracts";
 const RENT_REPORT_PAYMENTS_SHEET = "Rent_Payments";
 
 // Must match assets/js/api/rent-config.js's reportAdminKey exactly. Same
-// weak, client-visible gate as before — see backend/rent/README.md's
-// "Still open" section for why this isn't real authorization.
+// weak, client-visible gate as the other backends — see
+// backend/rent/README.md's "Still open" section for why this isn't real
+// authorization.
 const RENT_REPORT_ADMIN_KEY = "mk_admin_2025";
 
 /***************************************
- * Merge this branch into the project's existing doGet(e), it doesn't
- * have to be the only branch in it.
+ * WEB APP
  ***************************************/
 function doGet(e) {
-  const action = e.parameter.action || "";
-  if (action === "getRentReport") {
+  if (!e || !e.parameter) {
+    return jsonOutput({ status: "OK" });
+  }
+
+  if (e.parameter.action === "getRentReport") {
     if (String(e.parameter.adminKey || "") !== RENT_REPORT_ADMIN_KEY) {
       return jsonOutput({ error: "Unauthorized" });
     }
     return jsonOutput(getRentReport());
   }
+
   return jsonOutput({ error: "Invalid action" });
 }
 
@@ -152,8 +161,7 @@ function rentReportFormatDate_(d) {
 }
 
 /***************************************
- * Only needed if the reportUrl project doesn't already have one (it's
- * a one-liner every one of these backends defines identically).
+ * JSON OUTPUT
  ***************************************/
 function jsonOutput(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
