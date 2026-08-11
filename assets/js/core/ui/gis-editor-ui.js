@@ -75,6 +75,12 @@ MKNexus.GISEditorUI = (function () {
   // the layout the user settles on survives a reload. -----------------
   const FLOAT_STORAGE_KEY = 'mknexus_gis_panel_layout_v1';
 
+  // Every panel setupFloatPanel() has wired, so a single resize listener
+  // (below) can re-clamp all of them against whatever screen the page is
+  // *currently* on — see the BUG FIX comment inside setupFloatPanel for
+  // why this is needed at all.
+  const floatPanels = [];
+
   function loadFloatLayout() {
     try { return JSON.parse(localStorage.getItem(FLOAT_STORAGE_KEY) || '{}'); } catch { return {}; }
   }
@@ -82,15 +88,50 @@ MKNexus.GISEditorUI = (function () {
     try { localStorage.setItem(FLOAT_STORAGE_KEY, JSON.stringify(layout)); } catch { /* storage unavailable — layout just won't persist */ }
   }
 
+  // Fits a desired left/top/width/height inside panelEl's actual current
+  // container (offsetParent — .gis-editor, itself inset:0 over .geo-module)
+  // instead of trusting the numbers verbatim. width/height null means
+  // "leave it at whatever it already is" (panelEl.offsetWidth/Height),
+  // matching setupFloatPanel's existing "only touch what was saved" rule.
+  function clampFloatRect(panelEl, left, top, width, height) {
+    const parent = panelEl.offsetParent;
+    const parentWidth = parent?.clientWidth || window.innerWidth;
+    const parentHeight = parent?.clientHeight || window.innerHeight;
+    const clampedWidth = width ? Math.min(width, Math.max(0, parentWidth - 48)) : null;
+    const clampedHeight = height ? Math.min(height, Math.max(0, parentHeight - 48)) : null;
+    const maxLeft = Math.max(0, parentWidth - (clampedWidth || panelEl.offsetWidth));
+    const maxTop = Math.max(0, parentHeight - (clampedHeight || panelEl.offsetHeight));
+    return {
+      left: Math.max(0, Math.min(maxLeft, left)),
+      top: Math.max(0, Math.min(maxTop, top)),
+      width: clampedWidth,
+      height: clampedHeight,
+    };
+  }
+
   function setupFloatPanel(panelEl, handleEl, key) {
     if (!panelEl || !handleEl) return;
+    floatPanels.push({ panelEl, key });
     const saved = loadFloatLayout()[key];
     if (saved) {
+      // BUG FIX: confirmed live — these were applied as raw saved pixels
+      // with zero clamping against the screen actually rendering them. A
+      // position/size settled on one monitor (say a 1366px-wide laptop)
+      // replayed verbatim on a bigger desktop/projector screen (or just a
+      // narrower browser window) could land a panel overlapping the KPI
+      // deck, past the visible edge, or taller than the map itself —
+      // exactly "كل حاجة فوق بعض", and only on *some* screens, because the
+      // saved numbers were never revalidated against whichever viewport
+      // loaded them. The drag handler just below already had this same
+      // clamp for live mouse movement (maxLeft/maxTop) — restoring a saved
+      // layout on mount just never reused it. clampFloatRect() now backs
+      // both paths, plus the resize listener at the bottom of this file.
+      const fitted = clampFloatRect(panelEl, saved.left, saved.top, saved.width, saved.height);
       panelEl.style.right = 'auto';
-      panelEl.style.left = `${saved.left}px`;
-      panelEl.style.top = `${saved.top}px`;
-      if (saved.width) panelEl.style.width = `${saved.width}px`;
-      if (saved.height) panelEl.style.height = `${saved.height}px`;
+      panelEl.style.left = `${fitted.left}px`;
+      panelEl.style.top = `${fitted.top}px`;
+      if (fitted.width) panelEl.style.width = `${fitted.width}px`;
+      if (fitted.height) panelEl.style.height = `${fitted.height}px`;
     }
 
     const persist = () => {
@@ -157,9 +198,54 @@ MKNexus.GISEditorUI = (function () {
     });
   }
 
+  // Re-clamps every floating panel still on screen after the *browser
+  // window itself* is resized (moving it to a different monitor, un-
+  // maximizing, projecting to a screen of a different size, etc.) — the
+  // load-time clamp in setupFloatPanel only ever runs once, on mount, so
+  // without this a panel that was fine when the page loaded could still
+  // end up off-edge or overlapping if the window changes size afterward
+  // without a full reload.
+  function reclampAllFloatPanels() {
+    const layout = loadFloatLayout();
+    let changed = false;
+    floatPanels.forEach(({ panelEl, key }) => {
+      if (!panelEl.isConnected) return;
+      const parent = panelEl.offsetParent;
+      const parentRect = parent ? parent.getBoundingClientRect() : { left: 0, top: 0 };
+      const rect = panelEl.getBoundingClientRect();
+      const left = rect.left - parentRect.left;
+      const top = rect.top - parentRect.top;
+      // Only re-clamp width/height if the user actually customized them
+      // before (a saved entry with a width/height) — otherwise leave size
+      // alone; the CSS max-width/max-height rules already keep an
+      // un-customized panel responsive on their own.
+      const savedEntry = layout[key];
+      const fitted = clampFloatRect(panelEl, left, top, savedEntry?.width || null, savedEntry?.height || null);
+      if (fitted.left === left && fitted.top === top) return; // still fully on screen
+      panelEl.style.right = 'auto';
+      panelEl.style.left = `${fitted.left}px`;
+      panelEl.style.top = `${fitted.top}px`;
+      layout[key] = { left: fitted.left, top: fitted.top, width: fitted.width || rect.width, height: fitted.height || rect.height };
+      changed = true;
+    });
+    if (changed) saveFloatLayout(layout);
+  }
+
+  let resizeListenerAttached = false;
+
   function initFloatingPanels() {
+    floatPanels.length = 0; // avoid accumulating stale panel refs across remounts
     setupFloatPanel(rootEl.querySelector('.gis-editor__toolbar'), rootEl.querySelector('[data-drag="toolbar"]'), 'toolbar');
     setupFloatPanel(rootEl.querySelector('.gis-editor__panel'), rootEl.querySelector('[data-drag="panel"]'), 'panel');
+
+    if (!resizeListenerAttached) {
+      resizeListenerAttached = true;
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(reclampAllFloatPanels, 150);
+      });
+    }
   }
 
   function buildModal() {
