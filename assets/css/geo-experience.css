@@ -564,7 +564,6 @@
 
 /* ---- Presentation mode ------------------------------------------------------ */
 .geo-module.is-presentation .geo-command-deck { top: 7vh; left: 7vw; }
-.geo-module.is-presentation .geo-module__map { right: 0; }
 .geo-module.is-presentation .geo-command-actions,
 .geo-module.is-presentation .geo-command-deck__extras,
 .geo-module.is-presentation .gis-editor { display: none; }

@@ -35,7 +35,18 @@
   opacity: 0.16;
 }
 
-.geo-module__map { position: absolute; inset: 0 var(--geo-right-rail) 0 0; z-index: 1; min-width: 0; }
+/* BUG FIX: confirmed live — this used to permanently carve out
+   --geo-right-rail's width from the map itself, on the assumption the
+   GIS Editor toolbar/panel always sit docked there covering it. They're
+   free-floating and draggable (gis-editor-ui.js) though, so the moment
+   either one is moved elsewhere (or just placed lower, leaving the top
+   of the rail bare), that reserved strip has nothing over it — a plain
+   dead-black gap with the live map visibly cut off behind it, not a
+   panel. The map now always fills the *entire* module; every floating
+   panel (GIS Editor, command actions) already draws on top of it via
+   z-index regardless, so nothing here ever needed the map to make room
+   for them in the first place. */
+.geo-module__map { position: absolute; inset: 0; z-index: 1; min-width: 0; }
 
 .geo-module__map .maplibregl-ctrl-bottom-left,
 .geo-module__map .maplibregl-ctrl-bottom-right { display: none; }
@@ -43,10 +54,6 @@
 .geo-module__map .maplibregl-canvas-container { background: transparent; }
 
 .geo-module__map .maplibregl-ctrl-top-right {
-  /* Already relative to #mkMapContainer, whose own right edge is
-     pre-inset by --geo-right-rail (see .geo-module__map above) — adding
-     the rail width again here would double-subtract it and misplace the
-     control mid-map. */
   top: 24px;
   right: 24px;
   opacity: 0.72;
@@ -270,10 +277,9 @@
    inline the moment a panel is moved or resized, and inline styles always
    win over these, on any breakpoint. */
 @media (max-width: 900px) {
-  /* The map itself must shrink its right inset to match the toolbar/panel
-     below, or it keeps reserving the full desktop --geo-right-rail width
-     as dead space no visible panel occupies anymore (map/geo-module.css
-     ".geo-module__map" reads this same custom property). */
+  /* The map no longer insets by --geo-right-rail at all (see the BUG FIX
+     above .geo-module__map) — this custom property now only sizes the
+     docked toolbar/panel width below, nothing about the map itself. */
   .geo-module { --geo-right-rail: 190px; }
   .gis-editor__toolbar { top: 158px; right: 12px; width: 166px; height: 42vh; }
   .gis-editor__panel { top: calc(158px + 42vh + 12px); right: 12px; width: 166px; height: 30vh; }
