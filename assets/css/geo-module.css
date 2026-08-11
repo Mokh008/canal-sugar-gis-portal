@@ -98,7 +98,7 @@
   top: 124px;
   right: 24px;
   width: calc(var(--geo-right-rail) - 32px);
-  height: min(48vh, 430px);
+  height: min(40vh, 380px);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -195,10 +195,19 @@
 .gis-editor__status.is-active { opacity: 1; transform: translateY(0); }
 
 .gis-editor__panel {
-  top: calc(124px + min(48vh, 430px) + 12px);
+  /* BUG FIX: confirmed live — a fixed height:320px stacked under the
+     toolbar's own fixed height, on the same right edge the Legend/
+     Minimap used to dock at too (now moved — see geo-experience.css),
+     added up to more vertical space than a normal desktop/laptop
+     viewport actually has, so this panel routinely ran past the bottom
+     of the screen. `bottom` (no explicit height) makes it fill whatever
+     room is actually left above the map-status pill, on any screen —
+     shrinks gracefully on a short viewport (the list already scrolls
+     internally either way) instead of overflowing it. */
+  top: calc(124px + min(40vh, 380px) + 12px);
   right: 24px;
+  bottom: 68px; /* clears .geo-map-status (bottom:28px, ~38px tall) with room to spare */
   width: calc(var(--geo-right-rail) - 32px);
-  height: 320px;
   display: flex;
   flex-direction: column;
 }

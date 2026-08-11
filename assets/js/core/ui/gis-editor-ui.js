@@ -73,7 +73,11 @@ MKNexus.GISEditorUI = (function () {
   // ---- Free-floating toolbar/panel: drag by the header, resize from the
   // corner (native CSS `resize`), position+size persisted per-browser so
   // the layout the user settles on survives a reload. -----------------
-  const FLOAT_STORAGE_KEY = 'mknexus_gis_panel_layout_v1';
+  // Bumped to v2: the Legend/Minimap moved off the right edge and the
+  // panel's default sizing changed (geo-experience.css/geo-module.css) —
+  // any position saved under v1 was tuned against the old, colliding
+  // layout, so it's dropped rather than replayed against the new one.
+  const FLOAT_STORAGE_KEY = 'mknexus_gis_panel_layout_v2';
 
   // Every panel setupFloatPanel() has wired, so a single resize listener
   // (below) can re-clamp all of them against whatever screen the page is

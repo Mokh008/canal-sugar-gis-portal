@@ -375,10 +375,17 @@
 
 /* ---- Legend -------------------------------------------------------------- */
 .geo-legend {
-  /* Stacked above the minimap on the right edge, clear of the KPI deck
-     (top-left), which can grow tall with content. */
+  /* BUG FIX: confirmed live — this used to dock at the same right edge
+     the GIS Editor toolbar/panel do (geo-module.css), stacked from the
+     *bottom* while the editor panels stack from the *top*. On pretty
+     much any normal desktop/laptop viewport height, both sides' assumed
+     sizes add up to more than the screen actually has, so the editor's
+     "Backend Boundaries" panel ended up overlapping this and the minimap
+     — "كل حاجة فوق بعض", reproducible on any screen, not just some.
+     Moved to the bottom-LEFT instead, clear of the command deck (top-
+     left) above it and the entire right rail the editor owns. */
   position: absolute;
-  right: 28px;
+  left: 28px;
   bottom: 214px;
   z-index: 5;
   display: flex;
@@ -492,8 +499,10 @@
 
 /* ---- Minimap --------------------------------------------------------------- */
 .geo-minimap {
+  /* Moved to bottom-left along with .geo-legend just above — see its
+     BUG FIX comment. */
   position: absolute;
-  right: 28px;
+  left: 28px;
   bottom: 92px;
   z-index: 5;
   display: flex;
@@ -586,8 +595,8 @@
   .geo-command-deck { left: 16px; top: 16px; width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); }
   .geo-command-actions { right: 16px; top: 16px; }
   .geo-map-status { right: 16px; bottom: 16px; }
-  .geo-legend { right: 16px; bottom: 200px; }
-  .geo-minimap { right: 16px; bottom: 92px; }
+  .geo-legend { left: 16px; bottom: 200px; }
+  .geo-minimap { left: 16px; bottom: 92px; }
 }
 
 @media (max-width: 720px) {
