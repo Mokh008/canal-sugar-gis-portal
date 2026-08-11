@@ -36,6 +36,19 @@ project permanently afterward.
 No manual sheet changes needed — a `Salt` column is added to `Users`
 automatically the first time it's needed.
 
+### `auth.gs` — added `EngineerID` to the login response
+`handleLogin_`'s `safeUser` now includes `engineerId` (from a new,
+optional `EngineerID` column on the `Users` sheet). `modules/rent.js` and
+`modules/expenses.js` use this to fill in the engineer's ID automatically
+once they're logged into the shell, instead of asking them to type their
+numeric ID by hand on every visit with no way to verify it's really
+them. **To wire someone up: add their numeric engineer ID (matching
+whatever Rent/Expenses' own sheets use, e.g. `1001777`) in a new
+`EngineerID` column on their row in `Users`.** Leave it blank for
+accounts that aren't a specific engineer (admins, etc.) — those two
+modules fall back to the old manual field exactly as before when it's
+empty.
+
 ### `auth.gs` — added `handleLogout_`
 There was previously no way to invalidate a session token before its
 8-hour TTL expired — the old frontend "logout" only cleared the token

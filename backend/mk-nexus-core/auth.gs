@@ -7,6 +7,17 @@
  * ASSUMPTION: the Users sheet has columns:
  * ID | Name | Username | Email | PasswordHash | Salt | Role | Active
  *
+ * NEW: optional EngineerID column, added so a login here can also carry
+ * the numeric ID the Rent/Expenses backends key employees by (e.g.
+ * "1001777") — those two never had a login of their own, so their
+ * frontend modules used to make every engineer type that ID in by hand,
+ * every visit, with no verification it was really them. If a user's row
+ * has EngineerID filled in, the login response now includes it and
+ * modules/rent.js + modules/expenses.js pick it up automatically instead
+ * of showing the free-text field. Leave it blank for accounts that
+ * aren't tied to a specific engineer (e.g. admins) — those modules fall
+ * back to the manual field exactly as before when it's empty.
+ *
  * SECURITY FIX (Critical): the live Users sheet was storing passwords
  * in PLAIN TEXT in the PasswordHash column and comparing them with a
  * direct string equality check — despite this file's own original
@@ -68,7 +79,8 @@ function handleLogin_(context) {
     name: user.FullName,
     username: user.Username,
     email: user.Email,
-    role: user.Role
+    role: user.Role,
+    engineerId: user.EngineerID ? String(user.EngineerID).trim() : ''
   };
 
   const token = createSession_(safeUser);

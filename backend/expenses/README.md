@@ -7,6 +7,25 @@ exactly, only the sections below actually changed behavior.
 
 ## Fixed now
 
+**Bug — duplicate submissions for the same month went through silently.**
+`doPost` never checked whether an id+month combination had already been
+submitted — resubmitting (a double-click, or genuinely redoing the form)
+appended a second set of Per Diem/Transportation/Electricity rows on top
+of the first, inflating totals in the admin report with no warning to
+anyone. Added `hasExistingSubmission_()`, checked before `saveExpense()`
+runs, mirroring the equivalent guard `confirmPayment()` already has on
+the Rent backend.
+
+**Bug — validation errors were in English inside an all-Arabic UI.**
+`modules/expenses.js` shows `err.message` straight to the engineer with
+no translation layer; `doPost`'s thrown messages ("Missing employee id",
+"Invalid month", etc.) were reaching the screen verbatim. Translated all
+of them to Arabic (see `doPost`) — same validation, same conditions,
+just readable to the person actually using the form. Also switched the
+catch block from `err.toString()` to `err.message` — `.toString()` on a
+plain `Error` prefixes it with `"Error: "`, which would've sat right in
+front of the Arabic text otherwise.
+
 **Bug — admin Report tab showed no data and an empty month dropdown.**
 The frontend (`modules/expenses.js`, `api/expenses-client.js`) has always
 called `action=getExpensesReport`, but this backend never implemented

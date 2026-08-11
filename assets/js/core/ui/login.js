@@ -60,6 +60,10 @@ MKNexus.Login = (function () {
       name,
       role: user.role || user.title || MKNexus.SessionData.profile.role,
       initials: user.initials || deriveInitials(name) || MKNexus.SessionData.profile.initials,
+      // See backend/mk-nexus-core/auth.gs — empty for accounts not tied
+      // to a specific engineer; Rent/Expenses fall back to their manual
+      // ID field in that case.
+      engineerId: user.engineerId || '',
     };
   }
 

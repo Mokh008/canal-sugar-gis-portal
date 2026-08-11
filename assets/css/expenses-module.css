@@ -108,6 +108,12 @@
 .expenses-input:focus, .expenses-select:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.045); }
 .expenses-input::placeholder { color: var(--text-muted); }
 
+/* Engineer ID auto-filled from the logged-in account (see modules/
+   expenses.js's sessionEngineerId()) — readonly, so it reads as
+   "already known", not just a disabled empty field. */
+.expenses-input[readonly] { background: rgba(255, 255, 255, 0.015); color: var(--text-muted); cursor: default; }
+.expenses-hint--identity { color: var(--accent); padding: 0; font-size: 12.5px; }
+
 .expenses-select {
   padding-left: 32px;
   appearance: none;

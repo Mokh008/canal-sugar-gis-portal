@@ -116,6 +116,12 @@
 .rent-input:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.045); }
 .rent-input::placeholder { color: var(--text-muted); }
 
+/* Engineer ID auto-filled from the logged-in account (see modules/
+   rent.js's sessionEngineerId()) — readonly, so it reads as "already
+   known", not just a disabled empty field. */
+.rent-input[readonly] { background: rgba(255, 255, 255, 0.015); color: var(--text-muted); cursor: default; }
+.rent-hint--identity { color: var(--accent); padding: 0; font-size: 12.5px; }
+
 .rent-select {
   width: 100%;
   padding: 10px 32px 10px 12px;
@@ -137,7 +143,14 @@
 .rent-select option { background: var(--surface-panel-raised); color: var(--text-primary); }
 
 .rent-search-btn { width: 100%; justify-content: center; }
-.rent-print-btn, .rent-export-btn { margin-bottom: var(--space-4); }
+.rent-export-btn { margin-bottom: var(--space-4); }
+
+/* Print-a-receipt row — a month select next to the button instead of a
+   lone button tied to whatever was just paid, so any previously-paid
+   month can be reprinted at any time (see modules/rent.js's
+   paidMonthsUnion()). */
+.rent-print-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: var(--space-4); }
+.rent-print-row .rent-select { width: auto; min-width: 170px; }
 
 .rent-state-msg { text-align: center; padding: 40px 12px; color: var(--text-muted); font-size: 13.5px; }
 .rent-empty {
@@ -311,6 +324,8 @@
 @media (max-width: 640px) {
   .rent-module__header { flex-direction: column; }
   .rent-report-toolbar { flex-direction: column; align-items: stretch; }
+  .rent-print-row { flex-direction: column; align-items: stretch; }
+  .rent-print-row .rent-select { width: 100%; }
   .rent-export-btn { justify-content: center; }
 }
 

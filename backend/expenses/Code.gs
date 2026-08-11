@@ -81,11 +81,26 @@ function doPost(e) {
     // Basic input hygiene — reject obviously malformed requests before
     // they reach saveExpense()/generateExpensePDF() rather than letting
     // a missing/garbage id silently create a blank-name PDF.
+    // BUG FIX: these used to be in English ("Missing employee id",
+    // "Invalid month", ...) and reached the engineer's screen verbatim
+    // (assets/js/modules/expenses.js just escapes+shows err.message) —
+    // jarring inside an otherwise all-Arabic interface. Translated below;
+    // no behavior change, same validation.
     if (!data.id || String(data.id).trim() === "") {
-      throw new Error("Missing employee id");
+      throw new Error("رقم المهندس مطلوب");
     }
     if (!data.month || Number(data.month) < 1 || Number(data.month) > 12) {
-      throw new Error("Invalid month");
+      throw new Error("الشهر غير صحيح");
+    }
+
+    // BUG FIX: nothing here ever checked whether this id+month had
+    // already been submitted — resubmitting (a double-click, or genuinely
+    // redoing the form) silently appended duplicate Per Diem/Transportation
+    // rows on top of the earlier ones, inflating totals in the admin
+    // report with no warning to the engineer or the admin. Rent already
+    // has the equivalent guard on confirmPayment(); this mirrors it.
+    if (hasExistingSubmission_(data.id, data.month)) {
+      throw new Error("تم تسجيل مصروفات هذا الشهر من قبل لهذا المهندس");
     }
 
     // Validation: transportation values must be valid AND within a
@@ -95,16 +110,16 @@ function doPost(e) {
       for (let d in data.transport) {
         const amount = Number(data.transport[d]);
         if (!amount || amount <= 0) {
-          throw new Error("Invalid transportation amount");
+          throw new Error("قيمة الانتقال غير صحيحة");
         }
         if (amount > MAX_TRANSPORT_PER_DAY) {
-          throw new Error("Transportation amount exceeds the allowed maximum");
+          throw new Error("قيمة الانتقال تجاوزت الحد المسموح به (" + MAX_TRANSPORT_PER_DAY + " جنيه)");
         }
       }
     }
 
     if (data.electricity && Number(data.electricity.amount) > MAX_ELECTRICITY_AMOUNT) {
-      throw new Error("Electricity amount exceeds the allowed maximum");
+      throw new Error("قيمة فاتورة الكهرباء تجاوزت الحد المسموح به");
     }
 
     saveExpense(data);
@@ -115,9 +130,34 @@ function doPost(e) {
   } catch (err) {
     return jsonOutput({
       status: "ERROR",
-      message: err.toString()
+      // .message (not .toString()) — the latter prefixes plain Error
+      // objects with "Error: ", which would show up literally in front
+      // of the Arabic text above.
+      message: err.message || String(err)
     });
   }
+}
+
+/************************************************
+ * ✅ NEW: DUPLICATE SUBMISSION GUARD
+ * True if Expenses_Data already has a "Per Diem" row for this id+month —
+ * saveExpense() always writes one such row per submission (see its
+ * header comment), so its presence alone is a reliable "already
+ * submitted" signal without needing a separate tracking sheet.
+ ************************************************/
+function hasExistingSubmission_(id, month) {
+  const sh = SpreadsheetApp.openById(EXPENSES_SPREADSHEET_ID).getSheetByName("Expenses_Data");
+  if (!sh || sh.getLastRow() < 2) return false;
+
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const targetId = String(id).trim();
+  const targetMonth = Number(month);
+
+  return rows.some((r) =>
+    String(r[1]).trim() === targetId &&
+    Number(r[5]) === targetMonth &&
+    r[4] === "Per Diem"
+  );
 }
 
 /************************************************

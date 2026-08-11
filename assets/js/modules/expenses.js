@@ -13,9 +13,9 @@ window.MKNexus = window.MKNexus || {};
      - Backend-sourced strings are HTML-escaped before interpolation. */
 MKNexus.ExpensesModule = (function () {
   let containerEl = null;
-  let empIdInput, monthSelect, daysBoxEl, summaryEl, daysCountEl, totalEl,
+  let empIdInput, empIdHintEl, monthSelect, daysBoxEl, summaryEl, daysCountEl, totalEl,
     transportBoxEl, dividerTransportEl, transportSectionEl, dividerElecEl,
-    elecSectionEl, elecAmountInput, elecYearInput, elecMonthInput, elecDayInput,
+    elecSectionEl, elecAmountInput, elecYearInput, elecDayInput,
     submitBtn, successBoxEl, formViewEl, reportViewEl, tabsEl,
     reportBodyEl, reportCardsEl, monthFilterEl, typeFilterEl, exportBtn,
     loaderEl, loaderTextEl;
@@ -36,6 +36,18 @@ MKNexus.ExpensesModule = (function () {
   const animateIn = MKNexus.Utils.animateIn;
   function showLoader(text) { MKNexus.Utils.showLoader(loaderEl, loaderTextEl, text); }
   function hideLoader() { MKNexus.Utils.hideLoader(loaderEl); }
+
+  // BUG FIX: engineers used to retype their numeric ID by hand on every
+  // visit, with nothing to verify it was really them — a typo silently
+  // loaded (or submitted under) someone else's attendance. Accounts tied
+  // to a specific engineer via Users.EngineerID (see
+  // backend/mk-nexus-core/auth.gs) now carry that ID on the session
+  // itself; this module locks the field to it instead of asking. Empty
+  // for accounts not tied to an engineer (admins, etc.) — falls back to
+  // the manual field exactly as before.
+  function sessionEngineerId() {
+    return (MKNexus.SessionData?.profile?.engineerId || '').trim();
+  }
 
   /* -------------------------------------------------------------------
      Template
@@ -65,6 +77,7 @@ MKNexus.ExpensesModule = (function () {
                   <i class="fa-solid fa-id-card expenses-input-icon"></i>
                   <input class="expenses-input expenses-input--icon" id="expEmpId" type="text" inputmode="numeric" placeholder="مثال: 1001730">
                 </div>
+                <div class="expenses-hint expenses-hint--identity" id="expEmpIdHint" hidden></div>
               </div>
               <div class="expenses-field">
                 <label class="expenses-label" for="expMonth">الشهر</label>
@@ -95,9 +108,14 @@ MKNexus.ExpensesModule = (function () {
               <div class="expenses-field" id="expElecSection" hidden>
                 <label class="expenses-label">فاتورة كهرباء (اختياري)</label>
                 <input class="expenses-input" id="expElecAmount" type="number" min="0" placeholder="المبلغ (EGP)">
+                <!-- BUG FIX: this used to also ask for the bill's month
+                     separately, even though submitExpenses() below always
+                     required it to match the attendance month selected
+                     above anyway — pure duplicate typing that was also the
+                     most common way this section failed validation. Now
+                     derived from expMonth directly (see submitExpenses()). -->
                 <div class="expenses-date-row">
                   <input class="expenses-input" id="expElecYear" type="number" min="2024" max="2100" placeholder="السنة">
-                  <input class="expenses-input" id="expElecMonth" type="number" min="1" max="12" placeholder="الشهر">
                   <input class="expenses-input" id="expElecDay" type="number" min="1" max="31" placeholder="اليوم">
                 </div>
               </div>
@@ -236,16 +254,19 @@ MKNexus.ExpensesModule = (function () {
 
     const elecAmount = Number(elecAmountInput.value) || 0;
     const y = Number(elecYearInput.value);
-    const m = Number(elecMonthInput.value);
+    // BUG FIX: this was its own input the engineer had to fill in by
+    // hand, even though it was always required to equal the attendance
+    // month selected above — now just IS that month, so there's nothing
+    // left to mistype or mismatch.
+    const m = Number(monthSelect.value);
     const d = Number(elecDayInput.value);
 
     if (elecAmount > 0) {
-      if (!y || !m || !d) { MKNexus.Toast.warning('من فضلك أدخل تاريخ فاتورة الكهرباء'); return; }
+      if (!y || !d) { MKNexus.Toast.warning('من فضلك أدخل تاريخ فاتورة الكهرباء'); return; }
       const testDate = new Date(y, m - 1, d);
       if (testDate.getFullYear() !== y || testDate.getMonth() + 1 !== m || testDate.getDate() !== d) {
         MKNexus.Toast.warning('تاريخ فاتورة الكهرباء غير صحيح'); return;
       }
-      if (m !== Number(monthSelect.value)) { MKNexus.Toast.warning('شهر فاتورة الكهرباء لازم يطابق الشهر المختار'); return; }
     }
 
     submitBtn.disabled = true;
@@ -288,6 +309,12 @@ MKNexus.ExpensesModule = (function () {
     document.getElementById('expLoadDaysBtn').addEventListener('click', loadAttendance);
     submitBtn.addEventListener('click', submitExpenses);
     daysBoxEl.addEventListener('change', (e) => { if (e.target.matches('input[type="checkbox"]')) calc(); });
+
+    // Parity with the Rent module's ID field (rent.js binds the same
+    // Enter-to-search), and one fewer click once the month is picked —
+    // the "تحميل أيام الحضور" button still works exactly as before too.
+    empIdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadAttendance(); });
+    monthSelect.addEventListener('change', () => { if (empIdInput.value.trim()) loadAttendance(); });
   }
 
   /* -------------------------------------------------------------------
@@ -441,6 +468,7 @@ MKNexus.ExpensesModule = (function () {
   ------------------------------------------------------------------- */
   function cacheDom() {
     empIdInput = document.getElementById('expEmpId');
+    empIdHintEl = document.getElementById('expEmpIdHint');
     monthSelect = document.getElementById('expMonth');
     daysBoxEl = document.getElementById('expDaysBox');
     summaryEl = document.getElementById('expSummary');
@@ -453,7 +481,6 @@ MKNexus.ExpensesModule = (function () {
     elecSectionEl = document.getElementById('expElecSection');
     elecAmountInput = document.getElementById('expElecAmount');
     elecYearInput = document.getElementById('expElecYear');
-    elecMonthInput = document.getElementById('expElecMonth');
     elecDayInput = document.getElementById('expElecDay');
     submitBtn = document.getElementById('expSubmitBtn');
     successBoxEl = document.getElementById('expSuccessBox');
@@ -476,6 +503,15 @@ MKNexus.ExpensesModule = (function () {
 
     reportLoadedOnce = false;
     reportAllData = [];
+
+    const linkedId = sessionEngineerId();
+    if (linkedId) {
+      empIdInput.value = linkedId;
+      empIdInput.readOnly = true;
+      const name = MKNexus.SessionData?.profile?.name;
+      empIdHintEl.textContent = name ? `🔒 مرتبط بحسابك: ${name}` : '🔒 مرتبط برقم مهندسك';
+      empIdHintEl.hidden = false;
+    }
 
     bindFormView();
     if (isAdmin()) {

@@ -19,14 +19,13 @@ window.MKNexus = window.MKNexus || {};
    report filters/tabs/export — is a straight port. */
 MKNexus.RentModule = (function () {
   let containerEl = null;
-  let engineerInput, payResultEl, payViewEl, reportViewEl, tabsEl,
+  let engineerInput, engineerHintEl, printMonthSelect, payResultEl, payViewEl, reportViewEl, tabsEl,
     reportHeadEl, reportBodyEl, reportCardsEl, monthFilterEl, statusFilterEl,
     exportBtn, loaderEl, loaderTextEl;
 
   let currentEngineerId = null;
   let currentAssets = [];
   let currentPaidMonths = {}; // { [assetName]: ["MM-YYYY", ...] }, from getAssets()
-  let lastPaidMonth = null;
   let reportAllData = [];
   let reportFiltered = [];
   let reportActiveTab = 'all';
@@ -43,6 +42,17 @@ MKNexus.RentModule = (function () {
   const animateIn = MKNexus.Utils.animateIn;
   function showLoader(text) { MKNexus.Utils.showLoader(loaderEl, loaderTextEl, text); }
   function hideLoader() { MKNexus.Utils.hideLoader(loaderEl); }
+
+  // BUG FIX: engineers used to retype their numeric ID by hand on every
+  // visit, with nothing to verify it was really them. Accounts tied to a
+  // specific engineer via Users.EngineerID (see
+  // backend/mk-nexus-core/auth.gs) now carry that ID on the session
+  // itself; this module locks the field to it instead of asking. Empty
+  // for accounts not tied to an engineer (admins, etc.) — falls back to
+  // the manual field exactly as before.
+  function sessionEngineerId() {
+    return (MKNexus.SessionData?.profile?.engineerId || '').trim();
+  }
 
   function sanitizeKey(name) {
     return String(name || '').replace(/\s/g, '_');
@@ -108,6 +118,7 @@ MKNexus.RentModule = (function () {
                 <i class="fa-solid fa-id-card rent-input-icon"></i>
                 <input class="rent-input rent-input--icon" id="rentEngineerId" type="text" placeholder="مثال: 1001777" inputmode="numeric">
               </div>
+              <div class="rent-hint rent-hint--identity" id="rentEngineerHint" hidden></div>
             </div>
             <button class="btn btn--primary rent-search-btn" type="button" id="rentLoadBtn">
               <span>عرض البيانات</span><i class="fa-solid fa-magnifying-glass"></i>
@@ -224,6 +235,27 @@ MKNexus.RentModule = (function () {
     </select>`;
   }
 
+  // BUG FIX: printReceipts only ever needs { engineerId, month } — it was
+  // never actually scoped to "the payment I just made", it aggregates
+  // every paid row for that id+month across all assets. The old button
+  // relied on a client-only `lastPaidMonth` variable that got wiped on
+  // every reload/re-search, and a month already marked paid was
+  // permanently disabled in the per-asset picker — so once an engineer
+  // paid without printing immediately (or came back later), there was no
+  // way left in the UI to get that receipt again. This lists every month
+  // that's actually been paid (across all assets) so any of them can be
+  // reprinted at any time, not just the one just paid.
+  function paidMonthsUnion() {
+    const all = new Set();
+    Object.values(currentPaidMonths).forEach((list) => (list || []).forEach((m) => all.add(m)));
+    return Array.from(all).sort(MKNexus.Utils.compareMonthKeys).reverse();
+  }
+
+  function printMonthOptionsHtml() {
+    const months = paidMonthsUnion();
+    return '<option value="">اختر شهر الإيصال</option>' + months.map((m) => `<option value="${m}">${m}</option>`).join('');
+  }
+
   function renderResults(data, paidMonths) {
     currentAssets = Array.isArray(data) ? data : [];
     currentPaidMonths = paidMonths || {};
@@ -233,9 +265,12 @@ MKNexus.RentModule = (function () {
       return;
     }
     payResultEl.innerHTML = `
-      <button class="btn btn--ghost rent-print-btn" type="button" id="rentPrintBtn">
-        <i class="fa-solid fa-print"></i><span>تحميل ملف الإيصالات</span>
-      </button>
+      <div class="rent-print-row" id="rentPrintRow">
+        <select class="rent-select" id="rentPrintMonth">${printMonthOptionsHtml()}</select>
+        <button class="btn btn--ghost rent-print-btn" type="button" id="rentPrintBtn">
+          <i class="fa-solid fa-print"></i><span>تحميل ملف الإيصالات</span>
+        </button>
+      </div>
       <div class="rent-table-wrap rent-table-wrap--desktop">
         <table class="rent-table">
           <thead><tr>
@@ -246,6 +281,7 @@ MKNexus.RentModule = (function () {
         </table>
       </div>
       <div class="rent-cards rent-cards--mobile">${currentAssets.map(assetCardHtml).join('')}</div>`;
+    printMonthSelect = document.getElementById('rentPrintMonth');
     animateIn(payResultEl);
   }
 
@@ -254,7 +290,6 @@ MKNexus.RentModule = (function () {
     if (!id) { MKNexus.Toast.warning('أدخل رقم المهندس'); return; }
     const loadBtn = document.getElementById('rentLoadBtn');
     currentEngineerId = id;
-    lastPaidMonth = null;
     showLoader('جاري تحميل البيانات...');
     if (loadBtn) loadBtn.disabled = true; // prevents overlapping/racing getAssets() calls (Enter + click, or a double-click)
     MKNexus.RentApi.getAssets(id)
@@ -272,13 +307,20 @@ MKNexus.RentModule = (function () {
     if (!item) return;
     if (!month) { MKNexus.Toast.warning('اختر الشهر'); return; }
 
+    // BUG FIX: this used to fire the (permanent, no-undo) payment record
+    // the instant "دفع" was clicked, with no confirmation step — a
+    // wrong month picked by mistake became a real financial record with
+    // no way to cancel it. One extra step for a state that can't be
+    // undone is worth the friction.
+    const confirmed = window.confirm(`تأكيد دفع إيجار "${item.assetName}" عن شهر ${month}؟`);
+    if (!confirmed) return;
+
     const originalLabel = btn.textContent;
     btn.disabled = true;
     showLoader('جاري تسجيل الدفع...');
     MKNexus.RentApi.confirmPayment({ engineerId: currentEngineerId, assetName: item.assetName, month })
       .then(() => {
         hideLoader();
-        lastPaidMonth = month;
         if (!currentPaidMonths[item.assetName]) currentPaidMonths[item.assetName] = [];
         currentPaidMonths[item.assetName].push(month);
 
@@ -293,6 +335,15 @@ MKNexus.RentModule = (function () {
           if (paidOption) { paidOption.disabled = true; paidOption.textContent = `${month} ✓ مدفوع`; }
           sel.value = '';
         });
+
+        // Refresh the print-month list with the just-paid month included,
+        // and default straight to it so printing right away still needs
+        // no extra picking — while leaving every other paid month
+        // available to reprint whenever, not just this one right now.
+        if (printMonthSelect) {
+          printMonthSelect.innerHTML = printMonthOptionsHtml();
+          printMonthSelect.value = month;
+        }
 
         btn.textContent = 'تم الدفع ✓';
         btn.classList.add('is-paid');
@@ -311,9 +362,10 @@ MKNexus.RentModule = (function () {
 
   function handlePrintReceipts() {
     if (!currentEngineerId) { MKNexus.Toast.warning('أدخل رقم المهندس'); return; }
-    if (!lastPaidMonth) { MKNexus.Toast.warning('لا توجد إيصالات مدفوعة للطباعة'); return; }
+    const month = printMonthSelect?.value;
+    if (!month) { MKNexus.Toast.warning('اختر الشهر'); return; }
     showLoader('جاري تجهيز ملف الإيصالات...');
-    MKNexus.RentApi.printReceipts({ engineerId: currentEngineerId, month: lastPaidMonth })
+    MKNexus.RentApi.printReceipts({ engineerId: currentEngineerId, month })
       .then((res) => {
         hideLoader();
         if (res?.pdfUrl && MKNexus.Utils.isSafeHttpsUrl(res.pdfUrl)) window.location.href = res.pdfUrl;
@@ -516,6 +568,7 @@ MKNexus.RentModule = (function () {
   ------------------------------------------------------------------- */
   function cacheDom() {
     engineerInput = document.getElementById('rentEngineerId');
+    engineerHintEl = document.getElementById('rentEngineerHint');
     payResultEl = document.getElementById('rentPayResult');
     payViewEl = document.getElementById('rentPayView');
     reportViewEl = document.getElementById('rentReportView');
@@ -539,14 +592,28 @@ MKNexus.RentModule = (function () {
     reportActiveTab = 'all';
     currentAssets = [];
     currentPaidMonths = {};
-    lastPaidMonth = null;
 
-    if (currentEngineerId) engineerInput.value = currentEngineerId;
+    const linkedId = sessionEngineerId();
+    if (linkedId) {
+      currentEngineerId = linkedId;
+      engineerInput.value = linkedId;
+      engineerInput.readOnly = true;
+      const name = MKNexus.SessionData?.profile?.name;
+      engineerHintEl.textContent = name ? `🔒 مرتبط بحسابك: ${name}` : '🔒 مرتبط برقم مهندسك';
+      engineerHintEl.hidden = false;
+    } else if (currentEngineerId) {
+      engineerInput.value = currentEngineerId;
+    }
+
     bindPayView();
     if (isAdmin()) {
       bindTopTabs();
       bindReportView();
     }
+
+    // The ID is already known and locked — no reason to make the
+    // engineer click "عرض البيانات" too before seeing anything.
+    if (linkedId) loadData();
 
     if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
       gsap.fromTo([containerEl.querySelector('.rent-module__header'), containerEl.querySelector('.rent-search-card')],
