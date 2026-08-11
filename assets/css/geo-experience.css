@@ -373,31 +373,35 @@
 }
 .geo-map-status__sep { margin: 0 8px; color: rgba(34, 197, 94, 0.9); }
 
-/* ---- Legend -------------------------------------------------------------- */
+/* ---- Legend + Minimap row ------------------------------------------------- */
+/* BUG FIX: confirmed live, twice — Legend/Minimap used to float
+   independently at a fixed screen corner (first bottom-right, colliding
+   with the GIS Editor's right-rail panels; moved to bottom-left, which
+   then collided with the command deck instead, since that deck's own KPI
+   content is already tall enough to need internal scrolling on a normal
+   screen — there was never a free corner for a *third* independent
+   floating box). Folded into the deck's own scroll flow instead (see
+   geo-module.js) — a row at the bottom of the same card, so they scroll
+   together with the KPI grid and can never land on top of anything else,
+   on any screen. */
+.geo-command-deck__extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .geo-legend {
-  /* BUG FIX: confirmed live — this used to dock at the same right edge
-     the GIS Editor toolbar/panel do (geo-module.css), stacked from the
-     *bottom* while the editor panels stack from the *top*. On pretty
-     much any normal desktop/laptop viewport height, both sides' assumed
-     sizes add up to more than the screen actually has, so the editor's
-     "Backend Boundaries" panel ended up overlapping this and the minimap
-     — "كل حاجة فوق بعض", reproducible on any screen, not just some.
-     Moved to the bottom-LEFT instead, clear of the command deck (top-
-     left) above it and the entire right rail the editor owns. */
-  position: absolute;
-  left: 28px;
-  bottom: 214px;
-  z-index: 5;
+  flex: 1 1 200px;
   display: flex;
   flex-direction: column;
   gap: var(--legend-gap);
-  min-width: 190px;
   padding: 14px 14px 12px;
   border-radius: var(--card-radius);
   border: var(--legend-border);
-  /* Same opaque-background/blur mismatch as .geo-command-deck above. */
   background: var(--surface-glass);
-  backdrop-filter: blur(var(--panel-blur));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
 }
 
@@ -499,12 +503,9 @@
 
 /* ---- Minimap --------------------------------------------------------------- */
 .geo-minimap {
-  /* Moved to bottom-left along with .geo-legend just above — see its
-     BUG FIX comment. */
-  position: absolute;
-  left: 28px;
-  bottom: 92px;
-  z-index: 5;
+  /* Now a row inside .geo-command-deck__extras alongside .geo-legend —
+     see the BUG FIX comment above it. */
+  flex: 1 1 200px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -512,7 +513,6 @@
   border-radius: var(--card-radius);
   border: var(--minimap-border);
   background: var(--minimap-bg);
-  backdrop-filter: blur(var(--panel-blur));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
 }
 
@@ -554,7 +554,7 @@
 .geo-module.is-presentation .geo-command-deck { top: 7vh; left: 7vw; }
 .geo-module.is-presentation .geo-module__map { right: 0; }
 .geo-module.is-presentation .geo-command-actions,
-.geo-module.is-presentation .geo-legend,
+.geo-module.is-presentation .geo-command-deck__extras,
 .geo-module.is-presentation .gis-editor { display: none; }
 .geo-module.is-presentation .geo-map-status { right: 7vw; bottom: 7vh; }
 
@@ -595,14 +595,12 @@
   .geo-command-deck { left: 16px; top: 16px; width: min(480px, calc(100% - 32px)); max-height: calc(100% - 32px); }
   .geo-command-actions { right: 16px; top: 16px; }
   .geo-map-status { right: 16px; bottom: 16px; }
-  .geo-legend { left: 16px; bottom: 200px; }
-  .geo-minimap { left: 16px; bottom: 92px; }
 }
 
 @media (max-width: 720px) {
   .geo-command-deck { width: calc(100% - 24px); left: 12px; top: 12px; }
   .geo-kpi-grid { grid-template-columns: 1fr; }
-  .geo-minimap, .geo-legend { display: none; }
+  .geo-command-deck__extras { flex-direction: column; }
   .geo-map-status { bottom: 12px; right: 12px; }
   .geo-command-actions { top: 12px; right: 12px; }
 }

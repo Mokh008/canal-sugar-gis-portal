@@ -34,28 +34,42 @@ MKNexus.GeoModule = (function () {
         <h1 class="geo-command-deck__title" id="geoSelectionName">Canal Sugar Operations</h1>
         <p class="geo-command-deck__subtitle" id="geoSelectionMeta">Egypt / Minya Governorate / Administration view</p>
         <div class="geo-kpi-grid" id="geoKpiGrid"></div>
+
+        <!-- BUG FIX: confirmed live — Legend/Minimap used to float
+             independently at a fixed screen corner (bottom-right, then
+             bottom-left), competing for space with whichever *other*
+             floating panel also anchors near that corner (the GIS Editor
+             toolbar/panel on the right, this deck itself on the left —
+             its own KPI content alone already needs to scroll internally
+             on a normal screen, so there's no free space near it at any
+             corner). Folding them into the deck's own scroll area instead
+             of a separate absolutely-positioned box removes that entire
+             category of "two floating things landed in the same spot" —
+             they now scroll along with the KPI cards, guaranteed never to
+             sit on top of anything else, on any screen. -->
+        <div class="geo-command-deck__extras">
+          <div class="geo-legend" aria-label="Boundary legend">
+            <span class="geo-legend__title">Map Legend</span>
+            <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--governorate"></span>Governorate</div>
+            <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--administration"></span>Administration</div>
+            <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--district"></span>District</div>
+            <div class="geo-legend__opacity">
+              <label for="geoLineOpacity"><i class="fa-solid fa-slash"></i> Line visibility</label>
+              <input type="range" id="geoLineOpacity" min="0" max="100" value="100" step="1" aria-label="Boundary line opacity">
+            </div>
+          </div>
+
+          <div class="geo-minimap" aria-label="Selected region minimap">
+            <div class="geo-minimap__frame"><div class="geo-minimap__marker" id="geoMinimapMarker"></div></div>
+            <div class="geo-minimap__meta">
+              <span class="geo-minimap__label">Current selection</span>
+              <span class="geo-minimap__name" id="geoMinimapName">Canal Sugar</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div class="geo-map-status"><span id="geoMapStatus">SATELLITE SIMULATION</span><span class="geo-map-status__sep">/</span><span id="geoCoordReadout">28.1099&deg; N 30.7503&deg; E</span></div>
-
-      <div class="geo-legend" aria-label="Boundary legend">
-        <span class="geo-legend__title">Map Legend</span>
-        <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--governorate"></span>Governorate</div>
-        <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--administration"></span>Administration</div>
-        <div class="geo-legend__item"><span class="geo-legend__swatch geo-legend__swatch--district"></span>District</div>
-        <div class="geo-legend__opacity">
-          <label for="geoLineOpacity"><i class="fa-solid fa-slash"></i> Line visibility</label>
-          <input type="range" id="geoLineOpacity" min="0" max="100" value="100" step="1" aria-label="Boundary line opacity">
-        </div>
-      </div>
-
-      <div class="geo-minimap" aria-label="Selected region minimap">
-        <div class="geo-minimap__frame"><div class="geo-minimap__marker" id="geoMinimapMarker"></div></div>
-        <div class="geo-minimap__meta">
-          <span class="geo-minimap__label">Current selection</span>
-          <span class="geo-minimap__name" id="geoMinimapName">Canal Sugar</span>
-        </div>
-      </div>
 
       <div class="geo-command-actions" aria-label="Map presentation controls">
         <button class="geo-command-btn" id="geoResetBtn" type="button" title="Reset camera"><i class="fa-solid fa-crosshairs"></i><span>Reset view</span></button>
