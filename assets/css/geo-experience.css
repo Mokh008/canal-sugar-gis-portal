@@ -38,17 +38,18 @@
   top: 28px;
   left: 28px;
   z-index: 4;
-  /* BUG FIX: confirmed live on a large presentation display — 560px plus
-     the right rail (tokens.css's --geo-right-rail) left the actual map
-     squeezed into a narrow center strip on a screen that's physically
-     big but not necessarily high-resolution. The map is the hero here,
-     not this card — trimmed the cap; the KPI grid below still adapts
-     (geo-kpi-grid's own responsive columns) at any width this resolves
-     to. */
-  width: min(460px, calc(100% - var(--geo-kpi-width) - 44px));
+  /* BUG FIX: confirmed live on a large presentation display — this card
+     (560px, then 460px) plus the right rail (tokens.css's
+     --geo-right-rail) left the actual map squeezed into a narrow center
+     strip on a screen that's physically big but not necessarily high-
+     resolution. The map is the hero here, not this card — trimmed the
+     cap again, and every KPI tile inside is now a compact stat rather
+     than a big hero card (see the KPI grid section below), so shrinking
+     the width doesn't just force everything into more scrolling. */
+  width: min(300px, calc(100% - var(--geo-kpi-width) - 44px));
   max-height: calc(100% - 72px);
   overflow: auto;
-  padding: var(--layout-padding);
+  padding: 16px;
   border-radius: var(--card-radius);
   border: var(--panel-border);
   /* Was the fully-opaque --surface-panel, which made backdrop-filter's
@@ -81,21 +82,21 @@
 }
 
 .geo-command-deck__title {
-  margin-top: 11px;
+  margin-top: 8px;
   font-family: var(--font-display);
-  font-size: clamp(30px, 2.6vw, 42px);
+  font-size: clamp(19px, 1.8vw, 24px);
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   color: #f6fff8;
   text-shadow: 0 1px 24px rgba(82, 201, 155, 0.18);
 }
 
 .geo-command-deck__subtitle {
-  margin-top: 10px;
+  margin-top: 5px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 10.5px;
+  line-height: 1.5;
   color: rgba(230, 243, 236, 0.7);
 }
 
@@ -117,16 +118,19 @@
 /* ---- KPI grid ----------------------------------------------------------- */
 .geo-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 22px;
+  /* One column, not three — a compact vertical stat list makes this card
+     work at 300px wide instead of needing an equally-cramped 3-up grid
+     at that width (see BUG FIX on .geo-command-deck above). */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .geo-kpi {
   position: relative;
   min-width: 0;
-  padding: 16px 16px 14px;
-  border-radius: 20px;
+  padding: 10px 12px 9px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   /* Glass sheen (unchanged) + a dark tint that controls legibility +
      a beet-leaf photo underneath, same "~12% visible" formula as
@@ -166,19 +170,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  margin-bottom: 6px;
   background: rgba(82, 201, 155, 0.13);
   color: #bff7d9;
+  font-size: 11px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .geo-kpi--hero {
   grid-column: 1 / -1;
-  padding: 18px 18px 16px;
-  min-height: 128px;
+  padding: 12px 12px 10px;
+  min-height: 0;
   border-color: rgba(82, 201, 155, 0.3);
   background-image:
     linear-gradient(150deg, rgba(20, 48, 40, 0.82), rgba(10, 24, 20, 0.87)),
@@ -189,11 +194,11 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(82, 201, 155, 0.06), 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
-.geo-kpi--hero .geo-kpi__icon { width: 42px; height: 42px; margin-bottom: 0; }
+.geo-kpi--hero .geo-kpi__icon { width: 30px; height: 30px; margin-bottom: 0; font-size: 13px; }
 .geo-kpi--hero .geo-kpi__value {
   display: block;
-  margin-top: 10px;
-  font-size: clamp(34px, 3.4vw, 48px);
+  margin-top: 6px;
+  font-size: clamp(22px, 2.2vw, 28px);
   font-weight: 800;
   color: #ffffff;
 }
@@ -205,20 +210,20 @@
 
 .geo-kpi__label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.17em;
+  font-size: 9px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(230, 243, 236, 0.66);
 }
 
-.geo-kpi__value-wrap { display: flex; flex-direction: column; gap: 5px; }
+.geo-kpi__value-wrap { display: flex; flex-direction: column; gap: 3px; }
 
 .geo-kpi__value {
   display: block;
   font-family: var(--font-display);
-  font-size: clamp(20px, 2.1vw, 26px);
+  font-size: clamp(15px, 1.5vw, 18px);
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.05;
@@ -232,26 +237,26 @@
 .geo-kpi__unit {
   display: block;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.17em;
+  font-size: 9px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(191, 247, 217, 0.82);
 }
 
-.geo-kpi__unit--small { font-size: 9px; letter-spacing: 0.15em; }
+.geo-kpi__unit--small { font-size: 8.5px; letter-spacing: 0.13em; }
 
 /* Achievement ring + linear bar. Same rotate(-90deg) SVG convention as the
    loading screen's boot ring — one visual language for "circular progress"
    across the whole app. */
-.geo-kpi__body { display: flex; align-items: center; gap: 18px; }
+.geo-kpi__body { display: flex; align-items: center; gap: 12px; }
 
-.geo-kpi__ring { position: relative; flex-shrink: 0; width: 76px; height: 76px; }
+.geo-kpi__ring { position: relative; flex-shrink: 0; width: 52px; height: 52px; }
 .geo-kpi__ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.geo-kpi__ring-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 6; }
+.geo-kpi__ring-track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 5; }
 .geo-kpi__ring-progress {
   fill: none;
   stroke: var(--accent-hover);
-  stroke-width: 6;
+  stroke-width: 5;
   stroke-linecap: round;
   filter: drop-shadow(0 0 6px rgba(82, 201, 155, 0.55));
   transition: stroke-dashoffset 0.9s var(--ease-premium);
@@ -263,12 +268,12 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   color: #f8fffb;
 }
 
-.geo-kpi__bar-track { flex: 1; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.geo-kpi__bar-track { flex: 1; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .geo-kpi__bar-fill {
   height: 100%;
   border-radius: inherit;
@@ -277,7 +282,7 @@
   transition: width 0.9s var(--ease-premium);
 }
 
-.geo-kpi-row { grid-column: 1 / -1; display: flex; gap: 12px; }
+.geo-kpi-row { grid-column: 1 / -1; display: flex; gap: 8px; }
 .geo-kpi-row .geo-kpi { flex: 1; min-width: 0; }
 
 .geo-kpi-footer {
@@ -285,13 +290,13 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-  margin-top: 2px;
-  padding-top: 16px;
+  gap: 12px;
+  margin-top: 0;
+  padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  letter-spacing: 0.06em;
   color: rgba(230, 243, 236, 0.55);
 }
 
@@ -299,10 +304,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-left: 8px;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 7px;
   color: var(--accent-hover);
   background: rgba(255, 255, 255, 0.04);
   transition: transform 0.5s var(--ease-premium), color 0.25s var(--ease-premium), background 0.25s var(--ease-premium);
@@ -394,19 +399,19 @@
 .geo-command-deck__extras {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
-  padding-top: 16px;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .geo-legend {
-  flex: 1 1 200px;
+  flex: 1 1 140px;
   display: flex;
   flex-direction: column;
   gap: var(--legend-gap);
-  padding: 14px 14px 12px;
-  border-radius: var(--card-radius);
+  padding: 10px 10px 9px;
+  border-radius: var(--radius-sm);
   border: var(--legend-border);
   background: var(--surface-glass);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
@@ -414,8 +419,8 @@
 
 .geo-legend__title {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.18em;
+  font-size: 9px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(82, 201, 155, 0.92);
 }
@@ -423,17 +428,17 @@
 .geo-legend__item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 11px;
   color: rgba(235, 252, 243, 0.82);
 }
 
 .geo-legend__swatch {
-  width: 18px;
-  height: 10px;
-  border-radius: 4px;
+  width: 16px;
+  height: 9px;
+  border-radius: 3px;
   border: 1.5px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.03);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.03);
 }
 
 /* Each swatch mirrors the actual line treatment used for that boundary
@@ -512,12 +517,12 @@
 .geo-minimap {
   /* Now a row inside .geo-command-deck__extras alongside .geo-legend —
      see the BUG FIX comment above it. */
-  flex: 1 1 200px;
+  flex: 1 1 140px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: var(--card-radius);
+  gap: 9px;
+  padding: 9px;
+  border-radius: var(--radius-sm);
   border: var(--minimap-border);
   background: var(--minimap-bg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--panel-shadow);
@@ -525,9 +530,9 @@
 
 .geo-minimap__frame {
   position: relative;
-  width: 112px;
-  height: 84px;
-  border-radius: 16px;
+  width: 78px;
+  height: 58px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: radial-gradient(circle at 30% 25%, rgba(82, 201, 155, 0.2), transparent 25%),
@@ -553,9 +558,9 @@
   box-shadow: inset 0 0 0 10px rgba(82, 201, 155, 0.12), 0 0 28px rgba(82, 201, 155, 0.24);
 }
 
-.geo-minimap__meta { display: flex; flex-direction: column; gap: 4px; }
-.geo-minimap__label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(82, 201, 155, 0.9); }
-.geo-minimap__name { font-size: 13px; font-weight: 600; color: #f5fff8; }
+.geo-minimap__meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.geo-minimap__label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(82, 201, 155, 0.9); }
+.geo-minimap__name { font-size: 12px; font-weight: 600; color: #f5fff8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- Presentation mode ------------------------------------------------------ */
 .geo-module.is-presentation .geo-command-deck { top: 7vh; left: 7vw; }
@@ -592,21 +597,18 @@
 
 /* ---- Responsive -------------------------------------------------------------- */
 @media (max-width: 1200px) {
-  .geo-command-deck { width: min(420px, calc(100% - 320px)); }
-  .geo-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .geo-kpi--hero, .geo-kpi--achievement { grid-column: 1 / -1; }
+  .geo-command-deck { width: min(300px, calc(100% - 320px)); }
 }
 
 @media (max-width: 900px) {
   .geo-module__map { inset: 0; }
-  .geo-command-deck { left: 16px; top: 16px; width: min(420px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+  .geo-command-deck { left: 16px; top: 16px; width: min(300px, calc(100% - 32px)); max-height: calc(100% - 32px); }
   .geo-command-actions { right: 16px; top: 16px; }
   .geo-map-status { right: 16px; bottom: 16px; }
 }
 
 @media (max-width: 720px) {
   .geo-command-deck { width: calc(100% - 24px); left: 12px; top: 12px; }
-  .geo-kpi-grid { grid-template-columns: 1fr; }
   .geo-command-deck__extras { flex-direction: column; }
   .geo-map-status { bottom: 12px; right: 12px; }
   .geo-command-actions { top: 12px; right: 12px; }
