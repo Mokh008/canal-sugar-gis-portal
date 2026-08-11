@@ -2,7 +2,9 @@ window.MKNexus = window.MKNexus || {};
 
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
-  baseUrl: 'https://script.google.com/macros/s/AKfycbyHBiAlLjf9nzkxmaDJSPILc-nL2JE4CzT0RYKo2N0VKa43wTlNLZkxpk9ml_fSPAhlVw/exec',
+  // Redeployed (new deployment, hence the URL change) with EngineerID
+  // added to the login response — see backend/mk-nexus-core/auth.gs.
+  baseUrl: 'https://script.google.com/macros/s/AKfycbwCFePkGfnAVU1RLaQ2TlLlw1DL0VhEl2iSodPqV8jqKN3JZN5UU5phwLUvpM98fbcQtw/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
