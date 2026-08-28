@@ -10,8 +10,8 @@ window.MKNexus = window.MKNexus || {};
    NOT a security boundary by itself — same caveat as Utils.isAdmin():
    this only hides/redirects in the client. The actual data behind each
    module is only as protected as that module's own backend (see
-   modules/rent.js, modules/expenses.js, and each backend/*/README.md
-   for what is and isn't enforced server-side today).
+   modules/rent.js, modules/expenses.js, and each backend module's own
+   README for what is and isn't enforced server-side today).
 
    Role strings: the Users sheet's Role column is mixed-case
    ("Manager"/"manager", etc.) and mk-nexus-core's login response now
