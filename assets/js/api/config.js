@@ -2,9 +2,11 @@ window.MKNexus = window.MKNexus || {};
 
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
-  // Redeployed (new deployment, hence the URL change) with EngineerID
-  // added to the login response — see backend/mk-nexus-core/auth.gs.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbwCFePkGfnAVU1RLaQ2TlLlw1DL0VhEl2iSodPqV8jqKN3JZN5UU5phwLUvpM98fbcQtw/exec',
+  // Redeployed (new deployment, hence the URL change) with the Roles
+  // matrix backend changes — canonicalized role model, sectorId on the
+  // session, and the new getTeamDirectory action. See
+  // backend/mk-nexus-core/README.md's "Role management update" section.
+  baseUrl: 'https://script.google.com/macros/s/AKfycbxQv5tCN2u9ioJhdq6RcJ3_MgLEHVyB1xC2WVvCpvfY6GRMzbIR6KYx6TvjMHunJDss/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
