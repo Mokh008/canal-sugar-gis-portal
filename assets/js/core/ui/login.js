@@ -64,6 +64,9 @@ MKNexus.Login = (function () {
       // to a specific engineer; Rent/Expenses fall back to their manual
       // ID field in that case.
       engineerId: user.engineerId || '',
+      // See backend/mk-nexus-core/auth.gs — a Section Manger/Manager's
+      // sector code, used to scope Rent/Expenses report views.
+      sectorId: user.sectorId || '',
     };
   }
 

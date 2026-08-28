@@ -9,7 +9,10 @@ MKNexus.Sidebar = (function () {
     if (!navEl) return;
     navEl.innerHTML = '';
 
-    MKNexus.Config.MODULES.forEach((mod) => {
+    // Only modules the logged-in role is allowed to open — see
+    // core/access.js. router.js applies the matching guard on the hash
+    // itself, so this and direct URL/hash edits stay in agreement.
+    MKNexus.Access.visibleModules().forEach((mod) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'shell-nav-item';

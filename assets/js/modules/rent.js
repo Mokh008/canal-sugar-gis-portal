@@ -10,9 +10,12 @@ window.MKNexus = window.MKNexus || {};
      - Visual identity now follows MK Nexus's tokens (tokens.css) instead
        of the source's own teal/indigo mk-theme.css.
      - The admin Report view is gated on the shell's own logged-in session
-       role (MKNexus.SessionData.profile.role) instead of a redirect to the
-       separate Company-Portal site + a client-side adminKey check — you're
-       already authenticated to get into the shell at all.
+       role (MKNexus.Access.canViewReports() — Admin/Section Manger/
+       Manager) instead of a redirect to the separate Company-Portal site
+       + a client-side adminKey check — you're already authenticated to
+       get into the shell at all. Non-admin viewers of that Report view
+       (Section Manger/Manager) additionally only ever see rows from
+       their own sector — see core/data/team-directory.js.
      - Backend-sourced strings are HTML-escaped before being interpolated
        (the source site didn't).
    Everything else — field names, month generation, payment/print flow,
@@ -37,7 +40,6 @@ MKNexus.RentModule = (function () {
   ------------------------------------------------------------------- */
   const escapeHtml = MKNexus.Utils.escapeHtml;
   const fmtNumber = MKNexus.Utils.fmtNumber;
-  const isAdmin = MKNexus.Utils.isAdmin;
   const prefersReducedMotion = MKNexus.Utils.prefersReducedMotion;
   const animateIn = MKNexus.Utils.animateIn;
   function showLoader(text) { MKNexus.Utils.showLoader(loaderEl, loaderTextEl, text); }
@@ -511,8 +513,14 @@ MKNexus.RentModule = (function () {
 
   function loadReport() {
     showLoader('جاري تحميل بيانات الإيجارات...');
-    MKNexus.RentApi.getRentReport()
-      .then((data) => {
+    // Section Manger/Manager only ever see their own sector's rows —
+    // Admin sees everyone, same as before this scoping existed. See
+    // core/data/team-directory.js's header comment for why this is a
+    // client-side filter rather than a backend one (Rent has no
+    // login/session concept of its own).
+    const directoryReady = MKNexus.Access.isAdmin() ? Promise.resolve() : MKNexus.TeamDirectory.ensureLoaded();
+    Promise.all([MKNexus.RentApi.getRentReport(), directoryReady])
+      .then(([data]) => {
         hideLoader();
         // The backend action can respond successfully with something that
         // isn't a rows array (e.g. getRentReport not implemented on this
@@ -523,8 +531,9 @@ MKNexus.RentModule = (function () {
           reportBodyEl.innerHTML = '<tr><td class="rent-state-msg" colspan="9">⚠️ أضف action=getRentReport في الـ Apps Script أولاً</td></tr>';
           return;
         }
-        reportAllData = reportFiltered = data;
-        buildMonthFilter(data);
+        const scoped = MKNexus.TeamDirectory.filterToMySector(data);
+        reportAllData = reportFiltered = scoped;
+        buildMonthFilter(scoped);
         renderKPIs(reportFiltered);
         renderByReportTab();
         animateIn(containerEl.querySelector('.rent-kpi-strip'));
@@ -606,7 +615,7 @@ MKNexus.RentModule = (function () {
     }
 
     bindPayView();
-    if (isAdmin()) {
+    if (MKNexus.Access.canViewReports()) {
       bindTopTabs();
       bindReportView();
     }

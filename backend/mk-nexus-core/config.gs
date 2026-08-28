@@ -25,15 +25,30 @@ const CONFIG = {
     AUDIT_LOG: 'Audit_Log'
   },
 
+  // ROLES ALIGNED TO THE REAL USERS SHEET (was 'Administrator'/'Manager'/
+  // 'Viewer' — three roles that don't exist anywhere in the live sheet,
+  // so getRoleRank_() ranked every real login -1 ("unrecognized role")
+  // and 403'd every protected route unconditionally). The five values
+  // below are the ones actually stored in Users.Role. 'Section Manger'
+  // keeps that exact spelling (not a typo introduced here) because it's
+  // what the sheet itself uses consistently for that role — changing it
+  // here without also changing every row would just reintroduce the
+  // same "unrecognized role" failure for that role specifically. Casing
+  // in the sheet is inconsistent (e.g. "manager"/"Manager", "engineer"/
+  // "Engineer") — normalizeRole_() in permissions.gs canonicalizes a raw
+  // sheet value to one of these five before it's ever compared, so
+  // ROLE_HIERARCHY.indexOf() below always sees a canonical string.
   ROLES: {
-    ADMINISTRATOR: 'Administrator',
+    ADMIN: 'Admin',
+    SECTION_MANAGER: 'Section Manger',
     MANAGER: 'Manager',
-    VIEWER: 'Viewer'
+    ENGINEER: 'Engineer',
+    SUPERVISOR: 'Supervisor'
   },
 
   // Ordered lowest -> highest privilege. Used by permissions.gs
   // for hierarchical comparisons instead of hardcoded checks.
-  ROLE_HIERARCHY: ['Viewer', 'Manager', 'Administrator'],
+  ROLE_HIERARCHY: ['Supervisor', 'Engineer', 'Manager', 'Section Manger', 'Admin'],
 
   ACTIONS: {
     // Auth
@@ -52,6 +67,7 @@ const CONFIG = {
     GET_SETTINGS: 'getSettings',
     GET_USERS: 'getUsers',
     GET_AUDIT_LOG: 'getAuditLog',
+    GET_TEAM_DIRECTORY: 'getTeamDirectory', // see directory.gs — sector-scoping roster for Rent/Expenses reports
 
     // Create
     CREATE_GOVERNORATE: 'createGovernorate',

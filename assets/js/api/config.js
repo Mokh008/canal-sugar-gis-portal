@@ -9,6 +9,7 @@ MKNexus.ApiConfig = Object.freeze({
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
     'getKPIs', 'getKPIAggregate', 'getPresentation', 'getSettings', 'getUsers', 'getAuditLog',
+    'getTeamDirectory',
     'createGovernorate', 'updateGovernorate', 'deleteGovernorate',
     'createAdministration', 'updateAdministration', 'deleteAdministration',
     'createDistrict', 'updateDistrict', 'deleteDistrict',

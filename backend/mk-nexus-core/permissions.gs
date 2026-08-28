@@ -2,11 +2,42 @@
  * ============================================================
  * MK NEXUS BACKEND — PERMISSIONS
  * Hierarchical role enforcement, driven entirely by CONFIG.
- * Unchanged in this review — this file is solid: unknown roles rank
- * -1 and fail every check safely (fail-closed), and every write route
- * in router.gs was already correctly gated through requireRole_() here.
+ * This file's fail-closed design (unknown roles rank -1) is unchanged;
+ * added normalizeRole_() below to canonicalize the real sheet's mixed-
+ * case role values before they ever reach getRoleRank_() — see its
+ * header comment and config.gs's ROLES/ROLE_HIERARCHY.
  * ============================================================
  */
+
+/**
+ * Canonicalizes a raw Users.Role sheet value to one of CONFIG.ROLES'
+ * exact strings, case-insensitively. The live sheet mixes casing for
+ * the same role ("Manager"/"manager", "Engineer"/"engineer",
+ * "Supervisor"/"supervisor") — without this, getRoleRank_()'s exact-
+ * string indexOf() would rank those rows -1 ("unrecognized role") and
+ * fail-closed on every protected route, even though the role is
+ * perfectly valid. Call this once, right after reading Users.Role
+ * (see auth.gs's handleLogin_), so every canonicalized role from then
+ * on — session, permission checks, audit log, the frontend — is
+ * consistent. Matches on a case-insensitive "contains" basis in
+ * highest-privilege-first order so e.g. "Section Manger" isn't
+ * mistaken for plain "Manager" (it contains "manager" as a substring
+ * too). Returns the raw, trimmed value unchanged if nothing matches —
+ * getRoleRank_() still ranks that -1 and fails closed, exactly as
+ * before for a truly unrecognized role.
+ * @param {string} rawRole
+ * @returns {string}
+ */
+function normalizeRole_(rawRole) {
+  const value = String(rawRole || '').trim();
+  const lower = value.toLowerCase();
+  if (lower.indexOf('admin') !== -1) return CONFIG.ROLES.ADMIN;
+  if (lower.indexOf('section') !== -1) return CONFIG.ROLES.SECTION_MANAGER;
+  if (lower.indexOf('supervisor') !== -1) return CONFIG.ROLES.SUPERVISOR;
+  if (lower.indexOf('engineer') !== -1) return CONFIG.ROLES.ENGINEER;
+  if (lower.indexOf('manager') !== -1) return CONFIG.ROLES.MANAGER;
+  return value;
+}
 
 /**
  * Returns the numeric rank of a role (higher = more privileged).

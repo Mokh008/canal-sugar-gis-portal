@@ -47,9 +47,11 @@ MKNexus.ExpensesApi = (function () {
   // SECURITY (server-side action required, see final report): `adminKey`
   // is a static literal shipped in this public JS bundle (see
   // expenses-config.js) — readable via view-source by any visitor, not a
-  // real secret. The UI only hides the Report tab from non-admins
-  // (isAdmin() in modules/expenses.js); this call itself has no server-
-  // enforceable authorization. Anyone can call
+  // real secret. The UI only hides the Report tab from Engineer/
+  // Supervisor (MKNexus.Access.canViewReports() in modules/expenses.js)
+  // and further scopes it to "my sector" for Section Manger/Manager
+  // (core/data/team-directory.js) — but this call itself has no
+  // server-enforceable authorization. Anyone can call
   // MKNexus.ExpensesApi.getExpensesReport() directly and receive every
   // engineer's full expense history. The backend must authenticate the
   // caller's real session/role instead of accepting this key.

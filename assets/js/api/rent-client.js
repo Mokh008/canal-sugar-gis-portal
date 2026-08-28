@@ -42,12 +42,14 @@ MKNexus.RentApi = (function () {
   // SECURITY (server-side action required, see final report): `adminKey`
   // is a static literal shipped in this public JS bundle (see
   // rent-config.js) — readable via view-source by any visitor, not a real
-  // secret. The UI only hides the Report tab from non-admins (isAdmin()
-  // in modules/rent.js); this call itself has no server-enforceable
-  // authorization. Anyone can call MKNexus.RentApi.getRentReport()
-  // directly and receive every office's full paid/unpaid rent history.
-  // The backend must authenticate the caller's real session/role instead
-  // of accepting this key.
+  // secret. The UI only hides the Report tab from Engineer/Supervisor
+  // (MKNexus.Access.canViewReports() in modules/rent.js) and further
+  // scopes it to "my sector" for Section Manger/Manager
+  // (core/data/team-directory.js) — but this call itself has no
+  // server-enforceable authorization. Anyone can call
+  // MKNexus.RentApi.getRentReport() directly and receive every office's
+  // full paid/unpaid rent history. The backend must authenticate the
+  // caller's real session/role instead of accepting this key.
   //
   // Returns whatever the backend actually sent, unmodified — the source
   // site distinguishes "a real empty array" (no rent data yet) from "a

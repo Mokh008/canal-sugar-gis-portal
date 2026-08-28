@@ -127,7 +127,11 @@ MKNexus.Header = (function () {
       if (e.key !== 'Enter') return;
       const query = input.value.trim().toLowerCase();
       if (!query) return;
-      const match = MKNexus.Config.MODULES.find((m) => m.label.toLowerCase().includes(query));
+      // Only modules this role can actually open — see core/access.js.
+      // Router.navigate() would silently redirect away from anything
+      // else anyway, but matching only the visible list here means the
+      // search never even offers a module the sidebar itself hides.
+      const match = MKNexus.Access.visibleModules().find((m) => m.label.toLowerCase().includes(query));
       if (!match) return;
       MKNexus.Router.navigate(match.id);
       input.value = '';

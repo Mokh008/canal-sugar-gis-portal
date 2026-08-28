@@ -37,9 +37,12 @@ MKNexus.Utils = (function () {
   /* ---------------------------------------------------------------
      isAdmin — UI-level convenience only. This hides/shows admin
      affordances in the client; it is NOT a security boundary — see
-     rent-config.js/expenses-config.js's reportAdminKey comments. The
-     real Users sheet stores roles like "Administrator", not the exact
-     literal "admin", hence the loose match.
+     rent-config.js/expenses-config.js's reportAdminKey comments. Kept
+     for any other loose "is this an admin?" check; the Roles matrix
+     (module visibility, Rent/Expenses report scoping) uses
+     MKNexus.Access.isAdmin()/canViewReports() instead — see
+     core/access.js — since those need the exact canonical role string,
+     not just a loose "contains admin" match.
   --------------------------------------------------------------- */
   function isAdmin() {
     const role = (MKNexus.SessionData?.profile?.role || '').trim().toLowerCase();

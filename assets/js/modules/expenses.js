@@ -8,8 +8,11 @@ window.MKNexus = window.MKNexus || {};
    Differences from the source site, by design (same choices as the Rent
    module port):
      - MK Nexus tokens instead of the source's own mk-theme.css.
-     - Admin Report view gated on MKNexus.SessionData.profile.role instead
-       of a redirect to the separate Company-Portal site + adminKey check.
+     - Report view gated on MKNexus.Access.canViewReports() (Admin/
+       Section Manger/Manager) instead of a redirect to the separate
+       Company-Portal site + adminKey check. Non-admin viewers of that
+       view (Section Manger/Manager) additionally only ever see rows
+       from their own sector — see core/data/team-directory.js.
      - Backend-sourced strings are HTML-escaped before interpolation. */
 MKNexus.ExpensesModule = (function () {
   let containerEl = null;
@@ -31,7 +34,6 @@ MKNexus.ExpensesModule = (function () {
   ------------------------------------------------------------------- */
   const escapeHtml = MKNexus.Utils.escapeHtml;
   const fmtNumber = MKNexus.Utils.fmtNumber;
-  const isAdmin = MKNexus.Utils.isAdmin;
   const prefersReducedMotion = MKNexus.Utils.prefersReducedMotion;
   const animateIn = MKNexus.Utils.animateIn;
   function showLoader(text) { MKNexus.Utils.showLoader(loaderEl, loaderTextEl, text); }
@@ -423,18 +425,25 @@ MKNexus.ExpensesModule = (function () {
 
   function loadReport() {
     showLoader('جاري تحميل بيانات المصروفات...');
-    MKNexus.ExpensesApi.getExpensesReport()
-      .then((data) => {
+    // Section Manger/Manager only ever see their own sector's rows —
+    // Admin sees everyone, same as before this scoping existed. See
+    // core/data/team-directory.js's header comment for why this is a
+    // client-side filter rather than a backend one (Expenses has no
+    // login/session concept of its own).
+    const directoryReady = MKNexus.Access.isAdmin() ? Promise.resolve() : MKNexus.TeamDirectory.ensureLoaded();
+    Promise.all([MKNexus.ExpensesApi.getExpensesReport(), directoryReady])
+      .then(([data]) => {
         hideLoader();
         if (!Array.isArray(data)) {
           reportBodyEl.innerHTML = '<tr><td class="expenses-state-msg" colspan="11">⚠️ أضف action=getExpensesReport في الـ Apps Script أولاً</td></tr>';
           return;
         }
-        reportAllData = data;
-        buildMonthFilter(data);
-        renderKPIs(data);
-        renderTable(data);
-        renderCards(data);
+        const scoped = MKNexus.TeamDirectory.filterToMySector(data);
+        reportAllData = scoped;
+        buildMonthFilter(scoped);
+        renderKPIs(scoped);
+        renderTable(scoped);
+        renderCards(scoped);
         animateIn(containerEl.querySelector('.expenses-kpi-strip'));
       })
       .catch((error) => {
@@ -514,7 +523,7 @@ MKNexus.ExpensesModule = (function () {
     }
 
     bindFormView();
-    if (isAdmin()) {
+    if (MKNexus.Access.canViewReports()) {
       bindTopTabs();
       bindReportView();
     }

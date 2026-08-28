@@ -18,6 +18,13 @@
  * aren't tied to a specific engineer (e.g. admins) — those modules fall
  * back to the manual field exactly as before when it's empty.
  *
+ * NEW: optional SectorID column, same idea — a Section Manger/Manager's
+ * own row carries the sector code they head, and every Engineer/
+ * Manager/Supervisor under them carries that same code. Included in the
+ * login response so the frontend can scope report views without a
+ * second round trip. See directory.gs's handleGetTeamDirectory_ for the
+ * roster this gets cross-referenced against.
+ *
  * SECURITY FIX (Critical): the live Users sheet was storing passwords
  * in PLAIN TEXT in the PasswordHash column and comparing them with a
  * direct string equality check — despite this file's own original
@@ -79,8 +86,20 @@ function handleLogin_(context) {
     name: user.FullName,
     username: user.Username,
     email: user.Email,
-    role: user.Role,
-    engineerId: user.EngineerID ? String(user.EngineerID).trim() : ''
+    // Canonicalized (see permissions.gs's normalizeRole_ header comment) —
+    // the raw sheet value is inconsistently cased ("Manager"/"manager",
+    // etc.), which used to rank every one of those logins -1
+    // ("unrecognized role") in getRoleRank_() and fail every permission
+    // check. Session, audit log, and the frontend all now see one
+    // consistent value per role.
+    role: normalizeRole_(user.Role),
+    engineerId: user.EngineerID ? String(user.EngineerID).trim() : '',
+    // NEW: carries Users.SectorID onto the session, alongside engineerId
+    // above — lets Section Manger/Manager accounts scope the Rent/
+    // Expenses report views to their own sector client-side (see
+    // directory.gs's handleGetTeamDirectory_ and modules/rent.js /
+    // modules/expenses.js). Empty for roles with no sector concept.
+    sectorId: user.SectorID ? String(user.SectorID).trim() : ''
   };
 
   const token = createSession_(safeUser);

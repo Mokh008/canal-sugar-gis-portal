@@ -339,19 +339,26 @@
 
 
 <!-- Config / Router / Shell -->
-  <script src="assets/js/api/config.js?v=6"></script>
+  <script src="assets/js/api/config.js?v=7"></script>
   <script src="assets/js/api/client.js?v=6"></script>
-  <script src="assets/js/core/config.js?v=7"></script>
-  <script src="assets/js/core/utils.js?v=1"></script>
+  <script src="assets/js/core/config.js?v=8"></script>
+  <script src="assets/js/core/utils.js?v=2"></script>
+  <!-- Access: role-based module visibility + report scoping (Layer 1/2 of
+       the Roles matrix) — must load before router.js/sidebar.js and
+       before any module that checks MKNexus.Access.*. -->
+  <script src="assets/js/core/access.js?v=1"></script>
   <script src="assets/js/core/ui/toast.js?v=1"></script>
-  <script src="assets/js/core/router.js"></script>
-  <script src="assets/js/core/data/session-data.js"></script>
+  <script src="assets/js/core/router.js?v=2"></script>
+  <script src="assets/js/core/data/session-data.js?v=2"></script>
+  <!-- Team Directory: sector-scoping roster for Rent/Expenses reports —
+       needs MKNexus.ApiClient (loaded above) and MKNexus.Access. -->
+  <script src="assets/js/core/data/team-directory.js?v=1"></script>
   <script src="assets/js/core/data/boundaries-seed.js?v=1"></script>
   <script src="assets/js/core/data/boundaries.js?v=13"></script>
   <script src="assets/js/core/data/kpi-store.js?v=5"></script>
-  <script src="assets/js/core/ui/sidebar.js?v=2"></script>
-  <script src="assets/js/core/ui/header.js?v=2"></script>
-  <script src="assets/js/core/ui/login.js"></script>
+  <script src="assets/js/core/ui/sidebar.js?v=3"></script>
+  <script src="assets/js/core/ui/header.js?v=3"></script>
+  <script src="assets/js/core/ui/login.js?v=2"></script>
 
   <!-- Geo Intelligence / Map Engine — MapLibre GL JS v5 (Globe projection) -->
   <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
@@ -370,14 +377,14 @@
        XLSX is only used for the admin Report view's Excel export. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="assets/js/api/rent-config.js?v=2"></script>
-  <script src="assets/js/api/rent-client.js?v=4"></script>
-  <script src="assets/js/modules/rent.js?v=7"></script>
+  <script src="assets/js/api/rent-client.js?v=5"></script>
+  <script src="assets/js/modules/rent.js?v=8"></script>
 
   <!-- Expenses module — its own single Apps Script backend
        (api/expenses-config.js), independent of Geo and Rent. -->
   <script src="assets/js/api/expenses-config.js?v=1"></script>
-  <script src="assets/js/api/expenses-client.js?v=3"></script>
-  <script src="assets/js/modules/expenses.js?v=6"></script>
+  <script src="assets/js/api/expenses-client.js?v=4"></script>
+  <script src="assets/js/modules/expenses.js?v=7"></script>
 
   <!-- Attendance module — its own single Apps Script backend
        (api/attendance-config.js), independent of Geo/Rent/Expenses. -->

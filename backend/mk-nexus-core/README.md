@@ -91,3 +91,63 @@ a cell value starting with `=`/`+`/`-`/`@` as a formula on some write
 paths; `entry.user` here is always the caller's own already-
 authenticated username, not free-form attacker input, so this is a
 "watch if the trust model ever changes" note, not an active bug).
+
+## Role management update (module/sector access matrix)
+
+### `config.gs` — roles realigned to the real Users sheet
+`CONFIG.ROLES`/`ROLE_HIERARCHY` used to be `Administrator`/`Manager`/
+`Viewer` — three values that don't exist anywhere in the live `Users`
+sheet. Every real login therefore ranked **-1** ("unrecognized role")
+in `getRoleRank_()` and got `FORBIDDEN` on every protected route. Now
+`Admin` / `Section Manger` (that spelling is the sheet's own, not a
+typo introduced here) / `Manager` / `Engineer` / `Supervisor`, ordered
+lowest → highest as `Supervisor < Engineer < Manager < Section Manger <
+Admin`. Added `GET_TEAM_DIRECTORY: 'getTeamDirectory'` to `ACTIONS`.
+
+### `permissions.gs` — added `normalizeRole_()`
+The sheet mixes casing for the same role (`Manager`/`manager`,
+`Engineer`/`engineer`, `Supervisor`/`supervisor`). `getRoleRank_()` does
+an exact-string `indexOf`, so without normalizing first, half of those
+rows would still rank -1 despite the fix above. `normalizeRole_()`
+case-insensitively maps a raw sheet value to one of the five canonical
+strings (checked in an order where `Section Manger`/`Admin` win before
+the plainer `manager` substring match); called once at login (see
+`auth.gs`) so everything downstream — session, permission checks, audit
+log, frontend — sees one consistent value per role.
+
+### `auth.gs` — canonicalized role + added `sectorId` to the session
+`handleLogin_`'s `safeUser.role` is now `normalizeRole_(user.Role)`
+instead of the raw sheet value. Also added `safeUser.sectorId` (from a
+new, optional `SectorID` column on `Users`, same pattern as the
+existing `EngineerID` column) — a Section Manger/Manager's own row
+carries the sector code they head, and every Engineer/Manager/
+Supervisor under them carries that same code on their row. Lets the
+frontend scope Rent/Expenses report views to "my sector" instead of
+only ever an all-or-nothing admin view.
+
+### `router.gs` — role remap + new route
+Every route that required the old `VIEWER`/`MANAGER`/`ADMINISTRATOR`
+now requires `ADMIN` (the frontend's Geo Intelligence module — the only
+caller of any of these actions today — is Admin-only in the new
+module-visibility matrix, so the backend now matches). The one
+exception: `changePassword` stays open to `SUPERVISOR` (the lowest
+role, i.e. any authenticated account), since every user needs to be
+able to change their own password regardless of which modules they can
+see. Also added the `getTeamDirectory` route, minimum role `MANAGER`
+(so Manager/Section Manger/Admin can call it; Engineer/Supervisor
+cannot).
+
+### `directory.gs` — new file
+Implements `handleGetTeamDirectory_`, a lightweight, non-sensitive
+roster read (`EngineerID`/`SectorID`/`FullName`/canonical `Role` only —
+no email, username, or password fields) used by the Rent/Expenses
+frontend to cross-reference a report row's `engineerId` against the
+current Section Manger/Manager's own sector. See the file's header
+comment for why this lives on this backend rather than on Rent/
+Expenses directly (those two have no login/session concept at all —
+see their own READMEs' "Still open" sections).
+
+**To wire someone up:** add their sector's code (matching whatever
+value their Section Manger's own row uses, e.g. `USR001`) in a new
+`SectorID` column on their row in `Users`. Leave it blank for accounts
+with no sector concept (Admin).

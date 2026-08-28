@@ -3,16 +3,25 @@
 window.MKNexus = window.MKNexus || {};
 
 MKNexus.Config = (function () {
+  // `roles` — who can see/open this module at all (MKNexus.Access's
+  // "Layer 1"; see core/access.js). Role labels must match
+  // MKNexus.Access.ROLES exactly ("Section Manger" is the sheet's own
+  // spelling, not a typo). A module with no `roles` array is open to
+  // everyone — every entry below declares one on purpose. Values come
+  // directly from the requested access matrix; 'presentation' wasn't
+  // part of that matrix, so it defaults to Admin-only (same as Geo
+  // Intelligence, the closest existing module in spirit) — narrow this
+  // down or open it up once its real audience is decided.
   const MODULES = [
-    { id: 'geo',          label: 'Geo Intelligence', icon: 'fa-solid fa-earth-africa', default: true },
-    { id: 'operations',   label: 'Operations',        icon: 'fa-solid fa-gears' },
-    { id: 'attendance',   label: 'Attendance',        icon: 'fa-solid fa-user-clock' },
-    { id: 'expenses',     label: 'Expenses',          icon: 'fa-solid fa-file-invoice-dollar' },
-    { id: 'rent',         label: 'Rent',              icon: 'fa-solid fa-house-chimney' },
-    { id: 'analytics',    label: 'Analytics',         icon: 'fa-solid fa-chart-line' },
-    { id: 'reports',      label: 'Reports',           icon: 'fa-solid fa-file-lines' },
-    { id: 'presentation', label: 'Presentation Mode', icon: 'fa-solid fa-display' },
-    { id: 'settings',     label: 'Settings',          icon: 'fa-solid fa-gear' },
+    { id: 'geo',          label: 'Geo Intelligence', icon: 'fa-solid fa-earth-africa', default: true, roles: ['Admin'] },
+    { id: 'operations',   label: 'Operations',        icon: 'fa-solid fa-gears',                       roles: ['Admin', 'Section Manger', 'Manager'] },
+    { id: 'attendance',   label: 'Attendance',        icon: 'fa-solid fa-user-clock',                  roles: ['Admin', 'Section Manger', 'Manager'] },
+    { id: 'expenses',     label: 'Expenses',          icon: 'fa-solid fa-file-invoice-dollar',         roles: ['Admin', 'Section Manger', 'Manager', 'Engineer', 'Supervisor'] },
+    { id: 'rent',         label: 'Rent',              icon: 'fa-solid fa-house-chimney',               roles: ['Admin', 'Section Manger', 'Manager', 'Engineer', 'Supervisor'] },
+    { id: 'analytics',    label: 'Analytics',         icon: 'fa-solid fa-chart-line',                  roles: ['Admin', 'Section Manger'] },
+    { id: 'reports',      label: 'Reports',           icon: 'fa-solid fa-file-lines',                  roles: ['Admin', 'Section Manger'] },
+    { id: 'presentation', label: 'Presentation Mode', icon: 'fa-solid fa-display',                     roles: ['Admin'] },
+    { id: 'settings',     label: 'Settings',          icon: 'fa-solid fa-gear',                        roles: ['Admin', 'Section Manger', 'Manager', 'Engineer'] },
   ];
 
   const COMPANY_NAME = 'Canal Sugar';
