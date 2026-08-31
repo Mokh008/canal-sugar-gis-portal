@@ -102,6 +102,7 @@ const CONFIG = {
     DEACTIVATE_USER: 'deactivateUser',
     CHANGE_PASSWORD: 'changePassword',
     ASSIGN_ROLE: 'assignRole',
+    UPLOAD_AVATAR: 'uploadAvatar', // see avatar.gs — self-service profile photo, Settings module
 
     // KPI
     GET_KPI_AGGREGATE: 'getKPIAggregate',

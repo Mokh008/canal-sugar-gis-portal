@@ -91,6 +91,12 @@ function getRouteTable_() {
     [CONFIG.ACTIONS.DEACTIVATE_USER]: { fn: handleDeactivateUser_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.ASSIGN_ROLE]: { fn: handleAssignRole_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.CHANGE_PASSWORD]: { fn: handleChangePassword_, roles: [CONFIG.ROLES.SUPERVISOR] },
+    // New — see avatar.gs. Any authenticated account can set its own
+    // profile photo (SUPERVISOR = lowest rank = everyone); the handler
+    // always writes to the caller's own row (context.user.id from the
+    // session), never a client-supplied id, so nobody can overwrite
+    // someone else's avatar.
+    [CONFIG.ACTIONS.UPLOAD_AVATAR]: { fn: handleUploadAvatar_, roles: [CONFIG.ROLES.SUPERVISOR] },
     [CONFIG.ACTIONS.REORDER_PRESENTATION]: { fn: handleReorderPresentation_, roles: [CONFIG.ROLES.ADMIN] },
 
     [CONFIG.ACTIONS.DELETE_GOVERNORATE]: { fn: handleDeleteGovernorate_, roles: [CONFIG.ROLES.ADMIN] },

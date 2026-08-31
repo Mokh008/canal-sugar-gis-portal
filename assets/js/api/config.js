@@ -20,7 +20,7 @@ MKNexus.ApiConfig = Object.freeze({
     'createKPI', 'updateKPI', 'deleteKPI',
     'createPresentation', 'updatePresentation', 'deletePresentation', 'reorderPresentation',
     'createUser', 'updateUser', 'deleteUser', 'activateUser', 'deactivateUser', 'assignRole', 'changePassword',
-    'updateSettings',
+    'updateSettings', 'uploadAvatar',
   ]),
   postActions: Object.freeze([
     'login',
@@ -32,7 +32,7 @@ MKNexus.ApiConfig = Object.freeze({
     'createKPI', 'updateKPI', 'deleteKPI',
     'createPresentation', 'updatePresentation', 'deletePresentation', 'reorderPresentation',
     'createUser', 'updateUser', 'deleteUser', 'activateUser', 'deactivateUser', 'assignRole', 'changePassword',
-    'updateSettings',
+    'updateSettings', 'uploadAvatar',
   ]),
   timeoutMs: 15000,
   sessionStorageKey: 'mknexus_session_token',

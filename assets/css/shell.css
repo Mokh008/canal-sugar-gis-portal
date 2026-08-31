@@ -326,6 +326,11 @@
   font-family: var(--font-mono);
   font-size: 11px; font-weight: 700;
 }
+/* Uploaded profile photo (see modules/settings.js, header.js's
+   updateProfileDisplay) — background-image instead of an <img> so the
+   circle/sizing above applies unchanged; color:transparent belt-and-
+   suspenders in case textContent isn't cleared for some reason. */
+.shell-profile__avatar.has-photo { background-size: cover; background-position: center; color: transparent; }
 .shell-profile__info { display: flex; flex-direction: column; gap: 2px; padding: 16px; border-bottom: 1px solid var(--line-soft); }
 .shell-profile__name { font-size: 14px; color: var(--text-primary); font-weight: 600; }
 .shell-profile__role { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }

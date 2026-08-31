@@ -60,7 +60,25 @@ MKNexus.Header = (function () {
   // cycles in the same page load. See shell.js's mount().
   function updateProfileDisplay(profile) {
     if (!profile) return;
-    document.getElementById('shellProfileInitials').textContent = profile.initials;
+    const avatarEl = document.getElementById('shellProfileInitials');
+    // A real uploaded photo (see modules/settings.js's Profile tab)
+    // takes over the same circle that used to only ever show initials —
+    // background-image rather than swapping in an <img> so the existing
+    // sizing/border CSS on .shell-profile__avatar applies unchanged.
+    // isSafeHttpsUrl guards the interpolation below the same way it
+    // already guards PDF links in rent.js/expenses.js — avatarUrl always
+    // comes from our own backend today, but this costs nothing and means
+    // a malformed or future-changed value can never break out of the
+    // url('...') it's placed into.
+    if (profile.avatarUrl && MKNexus.Utils.isSafeHttpsUrl(profile.avatarUrl)) {
+      avatarEl.style.backgroundImage = `url('${profile.avatarUrl}')`;
+      avatarEl.classList.add('has-photo');
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.classList.remove('has-photo');
+      avatarEl.textContent = profile.initials;
+    }
     document.getElementById('shellProfileName').textContent = profile.name;
     document.getElementById('shellProfileRole').textContent = profile.role;
   }

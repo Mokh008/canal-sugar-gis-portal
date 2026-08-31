@@ -18,6 +18,10 @@ MKNexus.SessionData = {
     // (narrower than a Section Manger's whole-sector view). See
     // core/data/team-directory.js.
     id: '',
+    // Set via modules/settings.js's Profile tab (avatar.gs's
+    // handleUploadAvatar_) — empty until someone uploads a photo, in
+    // which case the header/Settings avatar fall back to initials.
+    avatarUrl: '',
     // Was already in the login response but never kept anywhere on the
     // client until modules/settings.js's read-only Profile tab needed it.
     username: '',

@@ -64,6 +64,7 @@ MKNexus.Login = (function () {
       // Manager's own identity for the "my engineers only" report scope.
       // See core/data/team-directory.js.
       id: user.id || '',
+      avatarUrl: user.avatarUrl || '',
       // Was already returned by the backend but never kept anywhere on
       // the client — needed by modules/settings.js's read-only Profile tab.
       username: user.username || '',

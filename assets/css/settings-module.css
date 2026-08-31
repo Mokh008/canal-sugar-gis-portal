@@ -90,12 +90,28 @@
    3. PROFILE TAB
 --------------------------------------------------------------------- */
 .settings-profile { display: flex; align-items: center; gap: 18px; margin-bottom: var(--space-5); }
+.settings-profile__avatar-wrap { position: relative; flex-shrink: 0; }
 .settings-profile__avatar {
   width: 56px; height: 56px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--accent-gradient); color: #04140f;
-  font-family: var(--font-mono); font-size: 18px; font-weight: 700; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 18px; font-weight: 700;
 }
+/* Uploaded photo (see modules/settings.js) — same approach as
+   shell.css's .shell-profile__avatar.has-photo. */
+.settings-profile__avatar.has-photo { background-size: cover; background-position: center; color: transparent; }
+/* WhatsApp-style "tap to change" affordance — small camera badge
+   pinned to the avatar's own corner rather than a separate button, so
+   it reads as "this photo" being editable, not a generic form control. */
+.settings-profile__avatar-edit {
+  position: absolute; bottom: -2px; left: -2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--module-settings); color: #04140f;
+  border: 2px solid var(--card-bg); font-size: 11px;
+  cursor: pointer; transition: filter var(--duration-fast) var(--ease-premium);
+}
+.settings-profile__avatar-edit:hover { filter: brightness(1.12); }
 .settings-profile__name { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .settings-profile__role { font-size: 12.5px; color: var(--module-settings); font-family: var(--font-mono); letter-spacing: 0.04em; }
 

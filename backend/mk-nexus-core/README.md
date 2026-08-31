@@ -189,6 +189,22 @@ why this lives on this backend rather than on Rent/Expenses directly
 (those two have no login/session concept at all — see their own
 READMEs' "Still open" sections).
 
+## Profile photos (avatar.gs — new file)
+
+Added `uploadAvatar`, a self-service action any authenticated account
+can call to set/replace its own profile photo (Settings module's
+Profile tab — WhatsApp-style "tap your avatar to change it"). Always
+writes to the **caller's own** row (`context.user.id` from the
+authenticated session, never a client-supplied id) — nobody can
+overwrite someone else's photo this way. Saves the image to a
+`MK_Nexus_Avatars` Drive folder (shared "anyone with the link", same
+trade-off already made for Rent/Expenses' generated PDFs, lower stakes
+here since a profile photo isn't PII the way a national ID number is)
+and records the resulting URL in a new `AvatarUrl` column on `Users`
+(added automatically the first time it's needed, same as `Salt` was).
+`handleLogin_`'s response now includes `avatarUrl` too. No sheet setup
+needed — the column appears on first use.
+
 **To wire someone up (two independent columns on `Users`):**
 - `SectorID` — a whole sector's shared code (e.g. `USR001`). Put the
   same code on every row (Manager, Engineer, Supervisor) that belongs

@@ -115,7 +115,11 @@ function handleLogin_(context) {
     // Expenses report views to their own sector client-side (see
     // directory.gs's handleGetTeamDirectory_ and modules/rent.js /
     // modules/expenses.js). Empty for roles with no sector concept.
-    sectorId: user.SectorID ? String(user.SectorID).trim() : ''
+    sectorId: user.SectorID ? String(user.SectorID).trim() : '',
+    // NEW: profile photo, set via avatar.gs's handleUploadAvatar_
+    // (Settings module). Empty until someone uploads one — the frontend
+    // falls back to the initials avatar it always showed before.
+    avatarUrl: user.AvatarUrl ? String(user.AvatarUrl).trim() : ''
   };
 
   const token = createSession_(safeUser);

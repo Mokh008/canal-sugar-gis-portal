@@ -86,7 +86,13 @@ MKNexus.SettingsModule = (function () {
         <section class="settings-view" id="settingsProfileView">
           <div class="settings-card">
             <div class="settings-profile">
-              <span class="settings-profile__avatar" id="settingsProfileAvatar"></span>
+              <div class="settings-profile__avatar-wrap">
+                <span class="settings-profile__avatar" id="settingsProfileAvatar"></span>
+                <button class="settings-profile__avatar-edit" type="button" id="settingsAvatarEditBtn" title="تغيير الصورة الشخصية">
+                  <i class="fa-solid fa-camera"></i>
+                </button>
+                <input type="file" accept="image/*" id="settingsAvatarInput" hidden>
+              </div>
               <div>
                 <div class="settings-profile__name" id="settingsProfileName"></div>
                 <div class="settings-profile__role" id="settingsProfileRole"></div>
@@ -217,13 +223,85 @@ MKNexus.SettingsModule = (function () {
   ------------------------------------------------------------------- */
   function renderProfile() {
     const p = MKNexus.SessionData?.profile || {};
-    document.getElementById('settingsProfileAvatar').textContent = p.initials || deriveInitials(p.name);
+    const avatarEl = document.getElementById('settingsProfileAvatar');
+    // Same has-photo/background-image approach as header.js's
+    // updateProfileDisplay — kept in sync with it (see bindAvatarUpload
+    // below), guarded the same way against a malformed URL.
+    if (p.avatarUrl && MKNexus.Utils.isSafeHttpsUrl(p.avatarUrl)) {
+      avatarEl.style.backgroundImage = `url('${p.avatarUrl}')`;
+      avatarEl.classList.add('has-photo');
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.classList.remove('has-photo');
+      avatarEl.textContent = p.initials || deriveInitials(p.name);
+    }
     document.getElementById('settingsProfileName').textContent = p.name || '—';
     document.getElementById('settingsProfileRole').textContent = p.role || '—';
     document.getElementById('settingsProfileUsername').textContent = p.username || '—';
     document.getElementById('settingsProfileEmail').textContent = p.email || '—';
     document.getElementById('settingsProfileEngineerId').textContent = p.engineerId || '—';
     document.getElementById('settingsProfileSectorId').textContent = p.sectorId || '—';
+  }
+
+  // Reads the chosen file, downscales it on a <canvas> (max 300px on the
+  // longer side, JPEG @ 0.85) and resolves to a bare base64 string (no
+  // "data:image/jpeg;base64," prefix — avatar.gs decodes it directly).
+  // A phone photo can be several MB; this keeps the POST body and the
+  // resulting Drive file small regardless of what was actually selected.
+  function resizeImageToBase64(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('تعذرت قراءة الملف'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('الملف المختار مش صورة صحيحة'));
+        img.onload = () => {
+          let { width, height } = img;
+          if (width >= height && width > maxDim) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else if (height > maxDim) { width = Math.round(width * (maxDim / height)); height = maxDim; }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleAvatarFileChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // lets the same file be re-picked later (e.g. after an error)
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { MKNexus.Toast.warning('من فضلك اختر ملف صورة'); return; }
+
+    showLoader('جاري رفع الصورة...');
+    resizeImageToBase64(file, 300, 0.85)
+      .then((base64) => MKNexus.ApiClient.uploadAvatar({ imageBase64: base64, mimeType: 'image/jpeg' }))
+      .then((data) => {
+        hideLoader();
+        if (!data?.avatarUrl) { MKNexus.Toast.error('لم يتم استلام رابط الصورة من الخادم'); return; }
+        MKNexus.SessionData.profile.avatarUrl = data.avatarUrl;
+        renderProfile();
+        // Keeps the header's own avatar in sync immediately — same
+        // pattern shell.js uses on a fresh login (see its mount()).
+        MKNexus.Header.updateProfileDisplay(MKNexus.SessionData.profile);
+        MKNexus.Toast.success('تم تحديث الصورة الشخصية');
+      })
+      .catch((error) => {
+        hideLoader();
+        MKNexus.Toast.error(error?.message || 'تعذر رفع الصورة');
+      });
+  }
+
+  function bindAvatarUpload() {
+    const editBtn = document.getElementById('settingsAvatarEditBtn');
+    const fileInput = document.getElementById('settingsAvatarInput');
+    editBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleAvatarFileChange);
   }
 
   /* -------------------------------------------------------------------
@@ -522,6 +600,7 @@ MKNexus.SettingsModule = (function () {
     allUsers = [];
 
     renderProfile();
+    bindAvatarUpload();
     bindPreferences();
     bindTabs();
 
