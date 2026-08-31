@@ -7,6 +7,20 @@
  * accounts, instead of the all-or-nothing choice that existed before
  * (isAdmin() ? show every sector's data : show nothing).
  *
+ * TWO LEVELS OF SCOPING, TWO COLUMNS:
+ *  - SectorID: a whole sector's shared code (e.g. "USR001") — a Section
+ *    Manger sees every row whose SectorID matches their own.
+ *  - ManagerID: NEW. A Manager sees only the rows of the engineers/
+ *    supervisors *directly under them*, which is narrower than their
+ *    whole sector. Put the Manager's own `ID` (the Users sheet's own ID
+ *    column, e.g. "USR009" — NOT their EngineerID) in this column on
+ *    every Engineer/Supervisor row they directly supervise. Leave it
+ *    blank for anyone with no specific Manager (they're still covered by
+ *    their Section Manger's SectorID scoping, just not by any Manager's
+ *    narrower one). A Manager's own row needs SectorID filled in (same
+ *    as everyone else in their sector) but doesn't need a ManagerID of
+ *    its own.
+ *
  * WHY THIS LIVES HERE, NOT ON THE RENT/EXPENSES BACKENDS: those two are
  * separate Apps Script deployments with no login/session concept at all
  * (see backend/rent/README.md and backend/expenses/README.md's "Still
@@ -26,12 +40,12 @@
 
 /**
  * Returns the active-user roster, non-sensitive fields only (no email,
- * username, or password/salt) — just enough to group people by sector:
- * EngineerID (matches Rent/Expenses' own engineerId field), SectorID,
- * FullName, and the canonicalized Role. Restricted to Manager and above
- * (see router.gs) since this is only ever consumed by report-scoping
- * logic those roles need; Engineer/Supervisor accounts have no use for
- * it and don't get it.
+ * username, or password/salt) — just enough to group people by sector
+ * and by direct manager: EngineerID (matches Rent/Expenses' own
+ * engineerId field), SectorID, ManagerID, FullName, and the
+ * canonicalized Role. Restricted to Manager and above (see router.gs)
+ * since this is only ever consumed by report-scoping logic those roles
+ * need; Engineer/Supervisor accounts have no use for it and don't get it.
  * @param {Object} context
  * @returns {Array<Object>}
  */
@@ -43,6 +57,7 @@ function handleGetTeamDirectory_(context) {
     .map(u => ({
       engineerId: u.EngineerID ? String(u.EngineerID).trim() : '',
       sectorId: u.SectorID ? String(u.SectorID).trim() : '',
+      managerId: u.ManagerID ? String(u.ManagerID).trim() : '',
       name: u.FullName || '',
       role: normalizeRole_(u.Role)
     }))

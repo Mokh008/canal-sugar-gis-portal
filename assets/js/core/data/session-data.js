@@ -12,6 +12,12 @@ MKNexus.SessionData = {
     name: 'M. Farouk',
     role: 'Admin',
     initials: 'MF',
+    // Populated from the login response's own Users-sheet row ID (e.g.
+    // "USR009") — a Manager's own identity, matched against other rows'
+    // ManagerID column so a Manager sees only their own engineers
+    // (narrower than a Section Manger's whole-sector view). See
+    // core/data/team-directory.js.
+    id: '',
     // Populated from the login response's Users.EngineerID column (see
     // backend/mk-nexus-core/auth.gs) when this account is tied to a
     // specific engineer — modules/rent.js and modules/expenses.js read

@@ -60,6 +60,10 @@ MKNexus.Login = (function () {
       name,
       role: user.role || user.title || MKNexus.SessionData.profile.role,
       initials: user.initials || deriveInitials(name) || MKNexus.SessionData.profile.initials,
+      // The logged-in user's own Users-sheet row ID (e.g. "USR009") — a
+      // Manager's own identity for the "my engineers only" report scope.
+      // See core/data/team-directory.js.
+      id: user.id || '',
       // See backend/mk-nexus-core/auth.gs — empty for accounts not tied
       // to a specific engineer; Rent/Expenses fall back to their manual
       // ID field in that case.
@@ -103,6 +107,16 @@ MKNexus.Login = (function () {
       const data = await MKNexus.ApiClient.login({ username, password });
       applySessionProfile(data);
       persistRemember(dom.remember.checked);
+      // BUG FIX: this never reset the button out of its loading state on
+      // success — hide() just fades the whole screen out, so the submit
+      // button stayed `is-loading`/disabled underneath. Invisible while
+      // logged in, but the *same* DOM node reappears next time show() is
+      // called (e.g. after a Log Out) still stuck mid-spinner, unable to
+      // ever be clicked again without a full page reload. show() below
+      // also resets it defensively, but resetting here too means a
+      // second login attempt in the same session (no reload in between)
+      // isn't relying on that alone.
+      setLoading(false);
       hide();
       onSuccessCb?.();
     } catch (error) {
@@ -150,6 +164,11 @@ MKNexus.Login = (function () {
     dom.screen.classList.add('is-visible');
     dom.demoBtn.hidden = true;
     setError(null);
+    // Defensive reset — see handleSubmit()'s success branch. Whatever
+    // left the button in a stuck state (this bug, or any future one),
+    // showing the login screen should never hand back a form that's
+    // already disabled/mid-spinner.
+    setLoading(false);
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion || typeof gsap === 'undefined') {

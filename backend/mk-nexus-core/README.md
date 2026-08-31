@@ -139,15 +139,27 @@ cannot).
 
 ### `directory.gs` — new file
 Implements `handleGetTeamDirectory_`, a lightweight, non-sensitive
-roster read (`EngineerID`/`SectorID`/`FullName`/canonical `Role` only —
-no email, username, or password fields) used by the Rent/Expenses
-frontend to cross-reference a report row's `engineerId` against the
-current Section Manger/Manager's own sector. See the file's header
-comment for why this lives on this backend rather than on Rent/
-Expenses directly (those two have no login/session concept at all —
-see their own READMEs' "Still open" sections).
+roster read (`EngineerID`/`SectorID`/`ManagerID`/`FullName`/canonical
+`Role` only — no email, username, or password fields) used by the
+Rent/Expenses frontend to cross-reference a report row's `engineerId`
+against the current viewer's scope. See the file's header comment for
+why this lives on this backend rather than on Rent/Expenses directly
+(those two have no login/session concept at all — see their own
+READMEs' "Still open" sections).
 
-**To wire someone up:** add their sector's code (matching whatever
-value their Section Manger's own row uses, e.g. `USR001`) in a new
-`SectorID` column on their row in `Users`. Leave it blank for accounts
-with no sector concept (Admin).
+**To wire someone up (two independent columns on `Users`):**
+- `SectorID` — a whole sector's shared code (e.g. `USR001`). Put the
+  same code on every row (Manager, Engineer, Supervisor) that belongs
+  to a given Section Manger's sector, including the Section Manger's
+  own row. A Section Manger sees every row that shares their code.
+- `ManagerID` — **new**. A Manager sees only the engineers *directly
+  under them*, narrower than their whole sector. Put the Manager's own
+  `ID` (the sheet's own `ID` column, e.g. `USR009` — not their
+  `EngineerID`) in this column on every Engineer/Supervisor row they
+  personally supervise. Leave it blank for anyone with no specific
+  Manager (they're still covered by their Section Manger's `SectorID`
+  scoping, just not by any Manager's narrower one). A Manager's own row
+  still needs `SectorID` filled in like everyone else in their sector,
+  but doesn't need a `ManagerID` of its own.
+
+Leave both blank for accounts with no sector/team concept (Admin).

@@ -57,6 +57,14 @@ MKNexus.Access = (function () {
     return (MKNexus.SessionData?.profile?.sectorId || '').trim();
   }
 
+  // The logged-in user's own Users-sheet row ID (e.g. "USR009") — used
+  // to scope a Manager's report views to just the engineers whose
+  // ManagerID names them, narrower than currentSectorId()'s whole-sector
+  // view. See core/data/team-directory.js.
+  function currentUserId() {
+    return (MKNexus.SessionData?.profile?.id || '').trim();
+  }
+
   // A module with no `roles` array declared is treated as open to
   // everyone — a safe default for anything added later without
   // remembering to update this file, rather than silently vanishing it.
@@ -93,7 +101,7 @@ MKNexus.Access = (function () {
   }
 
   return {
-    ROLES, normalizeRole, currentRole, currentSectorId,
+    ROLES, normalizeRole, currentRole, currentSectorId, currentUserId,
     canAccessModule, visibleModules, defaultModuleId, canViewReports, isAdmin,
   };
 })();

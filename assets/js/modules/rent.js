@@ -14,8 +14,9 @@ window.MKNexus = window.MKNexus || {};
        Manager) instead of a redirect to the separate Company-Portal site
        + a client-side adminKey check — you're already authenticated to
        get into the shell at all. Non-admin viewers of that Report view
-       (Section Manger/Manager) additionally only ever see rows from
-       their own sector — see core/data/team-directory.js.
+       are additionally scoped: Section Manger sees their whole sector,
+       Manager sees only their own engineers — see
+       core/data/team-directory.js.
      - Backend-sourced strings are HTML-escaped before being interpolated
        (the source site didn't).
    Everything else — field names, month generation, payment/print flow,
@@ -513,11 +514,11 @@ MKNexus.RentModule = (function () {
 
   function loadReport() {
     showLoader('جاري تحميل بيانات الإيجارات...');
-    // Section Manger/Manager only ever see their own sector's rows —
-    // Admin sees everyone, same as before this scoping existed. See
-    // core/data/team-directory.js's header comment for why this is a
-    // client-side filter rather than a backend one (Rent has no
-    // login/session concept of its own).
+    // Manager sees only their own engineers (ManagerID); Section Manger
+    // sees their whole sector (SectorID); Admin sees everyone, same as
+    // before this scoping existed. See core/data/team-directory.js's
+    // header comment for why this is a client-side filter rather than a
+    // backend one (Rent has no login/session concept of its own).
     const directoryReady = MKNexus.Access.isAdmin() ? Promise.resolve() : MKNexus.TeamDirectory.ensureLoaded();
     Promise.all([MKNexus.RentApi.getRentReport(), directoryReady])
       .then(([data]) => {
@@ -531,7 +532,7 @@ MKNexus.RentModule = (function () {
           reportBodyEl.innerHTML = '<tr><td class="rent-state-msg" colspan="9">⚠️ أضف action=getRentReport في الـ Apps Script أولاً</td></tr>';
           return;
         }
-        const scoped = MKNexus.TeamDirectory.filterToMySector(data);
+        const scoped = MKNexus.TeamDirectory.filterToMyScope(data);
         reportAllData = reportFiltered = scoped;
         buildMonthFilter(scoped);
         renderKPIs(reportFiltered);
