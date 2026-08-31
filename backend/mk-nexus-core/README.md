@@ -36,6 +36,31 @@ project permanently afterward.
 No manual sheet changes needed — a `Salt` column is added to `Users`
 automatically the first time it's needed.
 
+### `auth.gs` — Critical (found later): the migration above never actually ran
+The fix above was correct in design but broken in practice: every place
+in this file that identified a user row — `safeUser.id`,
+`updateLastLogin_()`, and `setUserPasswordFields_()` (the migration's
+own write step) — read/looked up a column called **`UserID`**. That
+column doesn't exist anywhere in the real `Users` sheet; its ID column
+is named plain **`ID`**. `readSheetAsObjects_` keys its objects by the
+sheet's actual headers, so `user.UserID` was always `undefined`, and
+`setUserPasswordFields_()`'s `headers.indexOf('UserID')` was always
+`-1` — which made it throw ("Users sheet is missing a UserID or
+PasswordHash column.") on *every single login*, silently caught and
+logged by `upgradePasswordIfNeeded_()`'s try/catch. Net effect: the
+plaintext-password fix above never once succeeded since it was written
+— passwords have stayed in plain text this whole time despite this
+file (and this README) describing it as fixed.
+
+Fixed by changing every `UserID` reference in this file to `ID`,
+matching the sheet's real column. **Run `runOneTimePasswordMigration_`
+again** after redeploying this fix — it's safe to run repeatedly, and
+this time it will actually hash everyone instead of throwing.
+
+This also means `safeUser.id` (used by the audit log, and now by
+`directory.gs`'s Manager-level report scoping — see "Role management
+update" below) was silently empty for every session until now.
+
 ### `auth.gs` — added `EngineerID` to the login response
 `handleLogin_`'s `safeUser` now includes `engineerId` (from a new,
 optional `EngineerID` column on the `Users` sheet). `modules/rent.js` and

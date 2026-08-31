@@ -82,7 +82,23 @@ function handleLogin_(context) {
   upgradePasswordIfNeeded_(user, password);
 
   const safeUser = {
-    id: user.UserID,
+    // BUG FIX: this read `user.UserID` — a column that doesn't exist
+    // anywhere in the real Users sheet (its ID column is literally
+    // named "ID"). readSheetAsObjects_ keys its objects by the sheet's
+    // actual headers, so `user.UserID` was always `undefined` — meaning
+    // `safeUser.id` was always undefined too, silently. That broke more
+    // than just this response: updateLastLogin_() below and
+    // setUserPasswordFields_() (upgradePasswordIfNeeded_'s self-healing
+    // password-hash migration) both keyed off the same `user.UserID` /
+    // `headers.indexOf('UserID')`, so the migration has been throwing
+    // ("Users sheet is missing a UserID or PasswordHash column.") and
+    // silently failing on *every* login this whole time despite the
+    // README describing it as fixed — passwords were never actually
+    // getting hashed. Fixed everywhere in this file at once (search for
+    // the other `user.ID`/`headers.indexOf('ID')` occurrences below).
+    // Run runOneTimePasswordMigration_() once after redeploying this fix
+    // to hash everyone immediately instead of waiting for next login.
+    id: user.ID,
     name: user.FullName,
     username: user.Username,
     email: user.Email,
@@ -103,7 +119,7 @@ function handleLogin_(context) {
   };
 
   const token = createSession_(safeUser);
-  updateLastLogin_(user.UserID);
+  updateLastLogin_(user.ID);
 
   writeAuditLog_({
     user: safeUser.username,
@@ -266,9 +282,9 @@ function upgradePasswordIfNeeded_(user, password) {
   try {
     const newSalt = Utilities.getUuid();
     const newHash = hashPassword_(String(password), newSalt);
-    setUserPasswordFields_(user.UserID, newHash, newSalt);
+    setUserPasswordFields_(user.ID, newHash, newSalt);
   } catch (err) {
-    logError_('Password migration failed for user ' + user.UserID, { message: err && err.message });
+    logError_('Password migration failed for user ' + user.ID, { message: err && err.message });
   }
 }
 
@@ -289,7 +305,7 @@ function setUserPasswordFields_(userId, hash, salt) {
   const values = sheet.getDataRange().getValues();
   const headers = values[0];
 
-  let idCol = headers.indexOf('UserID');
+  let idCol = headers.indexOf('ID');
   let hashCol = headers.indexOf('PasswordHash');
   let saltCol = headers.indexOf('Salt');
 
@@ -298,7 +314,7 @@ function setUserPasswordFields_(userId, hash, salt) {
     sheet.getRange(1, saltCol + 1).setValue('Salt');
   }
   if (idCol === -1 || hashCol === -1) {
-    throw new Error('Users sheet is missing a UserID or PasswordHash column.');
+    throw new Error('Users sheet is missing an ID or PasswordHash column.');
   }
 
   for (let i = 1; i < values.length; i++) {
@@ -331,7 +347,7 @@ function runOneTimePasswordMigration_() {
     const plaintext = String(user.PasswordHash);
     const newSalt = Utilities.getUuid();
     const newHash = hashPassword_(plaintext, newSalt);
-    setUserPasswordFields_(user.UserID, newHash, newSalt);
+    setUserPasswordFields_(user.ID, newHash, newSalt);
     migrated++;
   });
 
