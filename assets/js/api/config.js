@@ -3,10 +3,10 @@ window.MKNexus = window.MKNexus || {};
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
   // Redeployed again (New deployment, hence another URL change) after
-  // the auth.gs UserID->ID fix. See backend/mk-nexus-core/README.md's
-  // "Role management update" section for the backend changes this
-  // deployment carries.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbzJCA_5O01f_ud-Yn_beT6qwh2OUB6CeJ1M421GDNobr23dc8nZflcbUDSwAtAzpUSPSw/exec',
+  // the setUserPasswordFields_ SPREADSHEET_ID fix + the password
+  // migration was successfully run (36 users hashed). See
+  // backend/mk-nexus-core/README.md for the full change log.
+  baseUrl: 'https://script.google.com/macros/s/AKfycbx_0F4aq5HzkBTrW7NI40cUxRa39piw3uQ8Rf_gSkb1255c_KWTDlMZm43MzeqMt_HvmA/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
