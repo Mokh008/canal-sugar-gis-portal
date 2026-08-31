@@ -66,5 +66,10 @@ MKNexus.Sidebar = (function () {
     initCollapse();
   }
 
-  return { init, setActive };
+  // render exposed separately (not just via init) so shell.js can
+  // re-filter the nav list against a freshly logged-in role on every
+  // re-entry to the shell without re-running initCollapse()'s listener
+  // bindings again too — those must stay one-time-only. See shell.js's
+  // mount() and core/access.js's visibleModules().
+  return { init, setActive, render };
 })();

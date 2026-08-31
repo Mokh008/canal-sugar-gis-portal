@@ -53,16 +53,24 @@ MKNexus.Header = (function () {
     });
   }
 
+  // Split out of initProfile() so shell.js can refresh just the display
+  // (name/role/avatar) on every re-entry to the shell, without re-running
+  // initProfile()'s own event-listener bindings below — those must stay
+  // one-time-only or they'd stack up across repeated logout→login
+  // cycles in the same page load. See shell.js's mount().
+  function updateProfileDisplay(profile) {
+    if (!profile) return;
+    document.getElementById('shellProfileInitials').textContent = profile.initials;
+    document.getElementById('shellProfileName').textContent = profile.name;
+    document.getElementById('shellProfileRole').textContent = profile.role;
+  }
+
   function initProfile(profile) {
     const btn = document.getElementById('shellProfileBtn');
     const panel = document.getElementById('shellProfilePanel');
     if (!btn || !panel) return;
 
-    if (profile) {
-      document.getElementById('shellProfileInitials').textContent = profile.initials;
-      document.getElementById('shellProfileName').textContent = profile.name;
-      document.getElementById('shellProfileRole').textContent = profile.role;
-    }
+    updateProfileDisplay(profile);
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -175,5 +183,5 @@ MKNexus.Header = (function () {
     document.addEventListener('click', () => closePanels());
   }
 
-  return { init, setBreadcrumb, applyTheme, isLightTheme };
+  return { init, setBreadcrumb, applyTheme, isLightTheme, updateProfileDisplay };
 })();

@@ -65,6 +65,24 @@ function registerModuleStubs() {
           MKNexus.Header.setBreadcrumb(moduleDef.label);
         },
       });
+    } else {
+      // BUG FIX: re-entering the shell (Log Out → log back in as a
+      // *different* account, no page reload in between) used to leave
+      // the header name/role/avatar, the sidebar's module list, and
+      // whatever module was already mounted in #shellContent all
+      // showing the *previous* session's data — everything above only
+      // ever ran once, on the very first mount(). The new login's
+      // MKNexus.SessionData.profile was correct in memory the whole
+      // time; nothing on screen ever re-read it. Explicitly re-syncing
+      // all three here (cheap, and each is idempotent — see their own
+      // comments) means a fresh login always shows a fully fresh shell,
+      // not a stale one wearing the last account's name.
+      MKNexus.Header.updateProfileDisplay(MKNexus.SessionData.profile);
+      MKNexus.Sidebar.render();
+      // Router.navigate() re-checks Access on whatever module was
+      // already active — redirects to this role's default module if it
+      // can't see that one, or just remounts it fresh if it can.
+      MKNexus.Router.navigate(MKNexus.Router.current(), { pushState: false });
     }
     reveal();
   }
