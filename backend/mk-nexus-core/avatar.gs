@@ -66,9 +66,19 @@ function handleUploadAvatar_(context) {
   // here even though it wasn't for those.
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-  // Drive's normal file URL isn't reliably embeddable as an <img src>;
-  // this export/view form is.
-  const avatarUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
+  // BUG FIX: `uc?export=view&id=...` (Drive's classic "direct link" form)
+  // used to be embeddable directly as an <img src>/background-image, but
+  // Google has since tightened this — for a lot of files it now redirects
+  // to an HTML viewer page instead of serving the raw image bytes, which
+  // silently renders as nothing (no broken-image icon, just an empty
+  // background) in both an <img> and a CSS background-image. The
+  // `thumbnail` endpoint below is Drive's own thumbnail-serving route —
+  // it reliably returns real image bytes for a file shared "anyone with
+  // the link" and is the commonly-used workaround for this exact
+  // regression. `sz=w512` asks for a 512px-wide thumbnail, comfortably
+  // larger than either avatar circle this ever renders into (28px header
+  // / 56px Settings) with room for high-DPI screens.
+  const avatarUrl = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w512';
 
   writeAvatarUrl_(context.user.id, avatarUrl);
 

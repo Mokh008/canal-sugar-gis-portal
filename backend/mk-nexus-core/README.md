@@ -200,7 +200,12 @@ overwrite someone else's photo this way. Saves the image to a
 `MK_Nexus_Avatars` Drive folder (shared "anyone with the link", same
 trade-off already made for Rent/Expenses' generated PDFs, lower stakes
 here since a profile photo isn't PII the way a national ID number is)
-and records the resulting URL in a new `AvatarUrl` column on `Users`
+and records the resulting URL — via Drive's `thumbnail?id=...&sz=w512`
+endpoint, not the classic `uc?export=view&id=...` form (that one now
+often redirects to an HTML viewer page instead of serving raw image
+bytes, which silently renders as nothing in an `<img>`/background-image
+— found live, fixed before this was documented as working) — in a new
+`AvatarUrl` column on `Users`
 (added automatically the first time it's needed, same as `Salt` was).
 `handleLogin_`'s response now includes `avatarUrl` too. No sheet setup
 needed — the column appears on first use.
