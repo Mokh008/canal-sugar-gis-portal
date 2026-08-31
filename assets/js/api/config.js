@@ -3,10 +3,9 @@ window.MKNexus = window.MKNexus || {};
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
   // Redeployed again (New deployment, hence another URL change) after
-  // the setUserPasswordFields_ SPREADSHEET_ID fix + the password
-  // migration was successfully run (36 users hashed). See
+  // adding avatar.gs's uploadAvatar action. See
   // backend/mk-nexus-core/README.md for the full change log.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbx_0F4aq5HzkBTrW7NI40cUxRa39piw3uQ8Rf_gSkb1255c_KWTDlMZm43MzeqMt_HvmA/exec',
+  baseUrl: 'https://script.google.com/macros/s/AKfycbxf4msXQ1jhtpl5ncPXLA4HwMSnKfpXqrMjCQwmVUsJ7zlZurYRD5kUY8lop-8zI-DPrw/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
