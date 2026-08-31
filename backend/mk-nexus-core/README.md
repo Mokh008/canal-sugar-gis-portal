@@ -61,6 +61,23 @@ This also means `safeUser.id` (used by the audit log, and now by
 `directory.gs`'s Manager-level report scoping — see "Role management
 update" below) was silently empty for every session until now.
 
+### `auth.gs` — Critical (found later still): `setUserPasswordFields_` threw "Invalid argument: id"
+Even after the `ID` fix above, running `runOneTimePasswordMigration_`
+threw `Exception: Invalid argument: id` at
+`SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)`. This project is bound
+directly to the Users spreadsheet (opened via that Sheet's own
+**Extensions > Apps Script**, not a standalone script), so
+`CONFIG.SPREADSHEET_ID` — sourced from a Script Property that was never
+set — was always empty; every *other* function in this codebase reads
+the sheet via `readSheetAsObjects_()`, which apparently never needed
+that property (it must resolve the bound spreadsheet a different way).
+`setUserPasswordFields_` was the one place still hardcoded to
+`openById(CONFIG.SPREADSHEET_ID)` specifically. Fixed to try
+`SpreadsheetApp.getActiveSpreadsheet()` first (works immediately for a
+bound script, no Script Property needed) and fall back to
+`openById(CONFIG.SPREADSHEET_ID)` only if that's ever `null` (a
+standalone deployment). No Script Property setup needed after this fix.
+
 ### `auth.gs` — added `EngineerID` to the login response
 `handleLogin_`'s `safeUser` now includes `engineerId` (from a new,
 optional `EngineerID` column on the `Users` sheet). `modules/rent.js` and

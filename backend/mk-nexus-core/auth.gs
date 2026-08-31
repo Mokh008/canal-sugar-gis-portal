@@ -301,7 +301,21 @@ function upgradePasswordIfNeeded_(user, password) {
  * @param {string} salt
  */
 function setUserPasswordFields_(userId, hash, salt) {
-  const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.USERS);
+  // BUG FIX: this used to be exclusively
+  // `SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)`, which throws
+  // "Invalid argument: id" whenever the SPREADSHEET_ID script property
+  // isn't set — and evidently it wasn't, since readSheetAsObjects_()
+  // (used two lines above this function's only caller,
+  // runOneTimePasswordMigration_) clearly works without it, meaning this
+  // project is bound directly to the Users spreadsheet (opened via that
+  // Sheet's own Extensions > Apps Script) rather than relying on a
+  // Script Property pointing at it. getActiveSpreadsheet() resolves the
+  // bound spreadsheet correctly in every execution context for a bound
+  // script — including a deployed web app request — so it's tried
+  // first; openById(CONFIG.SPREADSHEET_ID) is now only a fallback for a
+  // *standalone* script where that property genuinely is required.
+  const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.USERS);
   const values = sheet.getDataRange().getValues();
   const headers = values[0];
 
