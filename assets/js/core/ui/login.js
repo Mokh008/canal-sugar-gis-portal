@@ -64,6 +64,10 @@ MKNexus.Login = (function () {
       // Manager's own identity for the "my engineers only" report scope.
       // See core/data/team-directory.js.
       id: user.id || '',
+      // Was already returned by the backend but never kept anywhere on
+      // the client — needed by modules/settings.js's read-only Profile tab.
+      username: user.username || '',
+      email: user.email || '',
       // See backend/mk-nexus-core/auth.gs — empty for accounts not tied
       // to a specific engineer; Rent/Expenses fall back to their manual
       // ID field in that case.

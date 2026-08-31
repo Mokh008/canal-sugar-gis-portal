@@ -142,6 +142,12 @@
 }
 .shell-nav-item.is-active[data-module-id="expenses"] .shell-nav-item__icon { background: var(--module-expenses-soft); color: var(--module-expenses); }
 
+.shell-nav-item.is-active[data-module-id="settings"] {
+  background: linear-gradient(135deg, var(--module-settings-soft), rgba(154, 168, 184, 0.06));
+  border-color: rgba(154, 168, 184, 0.32);
+}
+.shell-nav-item.is-active[data-module-id="settings"] .shell-nav-item__icon { background: var(--module-settings-soft); color: var(--module-settings); }
+
 .shell-sidebar__footer { padding: var(--space-3); border-top: 1px solid var(--line-soft); }
 
 .shell-collapse-btn {

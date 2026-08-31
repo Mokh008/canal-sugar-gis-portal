@@ -18,6 +18,10 @@ MKNexus.SessionData = {
     // (narrower than a Section Manger's whole-sector view). See
     // core/data/team-directory.js.
     id: '',
+    // Was already in the login response but never kept anywhere on the
+    // client until modules/settings.js's read-only Profile tab needed it.
+    username: '',
+    email: '',
     // Populated from the login response's Users.EngineerID column (see
     // backend/mk-nexus-core/auth.gs) when this account is tied to a
     // specific engineer — modules/rent.js and modules/expenses.js read

@@ -1,0 +1,217 @@
+/* =====================================================================
+   MK NEXUS — Settings Module
+   Same design language as rent-module.css/expenses-module.css (shared
+   tokens, no hardcoded surface/text colors) with its own accent
+   (--module-settings, tokens.css).
+
+   Table of contents:
+     1. Header / tabs
+     2. Cards, fields
+     3. Profile tab
+     4. Preferences tab
+     5. Users tab — toolbar, table, mobile cards, badges
+     6. User modal (create/edit)
+     7. Loader
+     8. Responsive
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. HEADER / TABS
+--------------------------------------------------------------------- */
+.settings-module { display: flex; flex-direction: column; gap: var(--space-5); height: 100%; overflow-y: auto; }
+
+.settings-module__header { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.settings-module__eyebrow { color: var(--module-settings); }
+.settings-module__title { font-family: var(--font-display); font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; color: var(--text-primary); margin-top: 6px; }
+.settings-module__subtitle { font-size: 13.5px; color: var(--text-muted); margin-top: 6px; }
+
+.settings-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings-tab {
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background var(--duration-fast) var(--ease-premium), color var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium);
+}
+.settings-tab:hover { color: var(--text-primary); border-color: var(--line-strong); }
+.settings-tab.is-active { background: var(--module-settings-soft); border-color: rgba(154, 168, 184, 0.4); color: var(--module-settings); }
+
+/* ---------------------------------------------------------------------
+   2. CARDS, FIELDS
+--------------------------------------------------------------------- */
+.settings-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  padding: var(--space-5);
+}
+.settings-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--module-settings), transparent);
+  opacity: 0.45;
+}
+
+.settings-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: var(--space-4); }
+.settings-field:last-child { margin-bottom: 0; }
+.settings-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.settings-input, .settings-select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  transition: border-color var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium);
+}
+.settings-input:focus, .settings-select:focus { outline: none; border-color: var(--accent); background: rgba(255, 255, 255, 0.045); }
+.settings-input::placeholder { color: var(--text-muted); }
+.settings-select { appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386988f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: left 14px center; padding-left: 34px;
+}
+.settings-select option { background: var(--surface-panel-raised); color: var(--text-primary); }
+.settings-hint { font-size: 12px; color: var(--text-muted); }
+.settings-state-msg { text-align: center; padding: 40px 12px; color: var(--text-muted); font-size: 13.5px; }
+
+/* ---------------------------------------------------------------------
+   3. PROFILE TAB
+--------------------------------------------------------------------- */
+.settings-profile { display: flex; align-items: center; gap: 18px; margin-bottom: var(--space-5); }
+.settings-profile__avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-gradient); color: #04140f;
+  font-family: var(--font-mono); font-size: 18px; font-weight: 700; flex-shrink: 0;
+}
+.settings-profile__name { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.settings-profile__role { font-size: 12.5px; color: var(--module-settings); font-family: var(--font-mono); letter-spacing: 0.04em; }
+
+.settings-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.settings-info-item__label { display: block; font-size: 10px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.settings-info-item__value { display: block; font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.settings-info-item__value--muted { color: var(--text-muted); font-style: italic; }
+
+/* ---------------------------------------------------------------------
+   4. PREFERENCES TAB
+--------------------------------------------------------------------- */
+.settings-pref-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 0; border-bottom: 1px solid var(--line-soft);
+}
+.settings-pref-row:last-child { border-bottom: none; }
+.settings-pref-row__label { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.settings-pref-row__desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.settings-switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+.settings-switch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.settings-switch__track {
+  position: absolute; inset: 0; border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line-soft);
+  transition: background var(--duration-fast) var(--ease-premium);
+}
+.settings-switch__track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--text-secondary);
+  transition: transform var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium);
+}
+.settings-switch input:checked + .settings-switch__track { background: var(--accent-soft); border-color: rgba(82, 201, 155, 0.4); }
+.settings-switch input:checked + .settings-switch__track::after { transform: translateX(20px); background: var(--accent-hover); }
+
+/* ---------------------------------------------------------------------
+   5. USERS TAB — TOOLBAR, TABLE, MOBILE CARDS, BADGES
+--------------------------------------------------------------------- */
+.settings-users-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.settings-users-search { flex: 1 1 220px; max-width: 320px; }
+
+.settings-table-wrap { border-radius: var(--card-radius); border: var(--card-border); background: var(--card-bg); overflow: auto; }
+.settings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.settings-table th {
+  padding: 12px 14px; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--module-settings);
+  background: rgba(154, 168, 184, 0.05); border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap; text-align: center;
+}
+.settings-table td { padding: 10px 14px; color: var(--text-primary); white-space: nowrap; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.settings-table tr:last-child td { border-bottom: none; }
+.settings-table tr:hover td { background: rgba(154, 168, 184, 0.03); }
+
+.settings-muted { color: var(--text-muted); }
+.settings-strong { font-weight: 600; }
+
+.settings-badge { padding: 3px 10px; border-radius: var(--radius-pill); font-size: 10.5px; font-weight: 700; white-space: nowrap; display: inline-block; }
+.settings-badge--active { background: var(--success-soft); color: var(--success); }
+.settings-badge--inactive { background: var(--danger-soft); color: var(--danger-text); }
+.settings-badge--role { background: var(--module-settings-soft); color: var(--module-settings); }
+
+.settings-row-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.settings-icon-btn {
+  width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary); font-size: 12px;
+  transition: color var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium);
+}
+.settings-icon-btn:hover { color: var(--text-primary); border-color: var(--line-strong); }
+.settings-icon-btn--danger:hover { color: var(--danger-text); border-color: rgba(224, 122, 106, 0.4); background: var(--danger-soft); }
+
+.settings-cards { display: none; flex-direction: column; gap: 14px; }
+.settings-user-card { padding: 16px; }
+.settings-user-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.settings-user-card__name { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.settings-user-card__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-bottom: 12px; }
+
+/* ---------------------------------------------------------------------
+   6. USER MODAL (CREATE/EDIT)
+--------------------------------------------------------------------- */
+.settings-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 8, 7, 0.72); backdrop-filter: blur(10px); }
+.settings-modal.is-open { display: flex; }
+.settings-modal__panel {
+  width: min(520px, 100%); max-height: 85vh; overflow-y: auto;
+  border-radius: var(--card-radius); border: var(--card-border); background: var(--surface-panel-raised, var(--card-bg));
+  box-shadow: var(--shadow-panel); padding: var(--space-5);
+}
+.settings-modal__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+.settings-modal__title { font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--text-primary); }
+.settings-modal__close { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); }
+.settings-modal__close:hover { color: var(--text-primary); }
+.settings-modal__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.settings-modal__grid .settings-field--full { grid-column: 1 / -1; }
+.settings-modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: var(--space-4); }
+.settings-modal__note {
+  font-size: 11.5px; color: var(--text-muted); background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: var(--space-4);
+}
+
+/* ---------------------------------------------------------------------
+   7. LOADER
+--------------------------------------------------------------------- */
+.settings-loader {
+  position: fixed; inset: 0; z-index: var(--z-modal); display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; background: rgba(0, 8, 7, 0.55); backdrop-filter: blur(6px);
+}
+.settings-loader.is-visible { display: flex; }
+.settings-spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: var(--module-settings); animation: settings-spin 0.8s linear infinite; }
+.settings-loader-text { font-size: 13px; color: var(--text-secondary); }
+@keyframes settings-spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------------
+   8. RESPONSIVE
+--------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .settings-table-wrap { display: none; }
+  .settings-cards { display: flex; }
+  .settings-modal__grid { grid-template-columns: 1fr; }
+  .settings-profile { flex-direction: column; align-items: flex-start; }
+}

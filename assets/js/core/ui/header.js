@@ -70,6 +70,15 @@ MKNexus.Header = (function () {
       togglePanel(panel, btn);
     });
 
+    // Was permanently `disabled` with a "Soon" badge — modules/settings.js
+    // is a real module now. Router.navigate() itself redirects away for
+    // any role Settings isn't listed for in core/config.js (Supervisor),
+    // so no extra role check is needed here.
+    document.getElementById('shellSettingsBtn')?.addEventListener('click', () => {
+      closePanels();
+      MKNexus.Router.navigate('settings');
+    });
+
     document.getElementById('shellLogoutBtn')?.addEventListener('click', () => {
       MKNexus.App?.logout?.();
     });
@@ -77,15 +86,29 @@ MKNexus.Header = (function () {
 
   const THEME_STORAGE_KEY = 'mknexus_theme';
 
-  function initTheme() {
+  // Applies the theme to <body> + persists it + updates the header
+  // button's own icon/label if it's on the page. Exposed (see the
+  // returned object at the bottom of this file) so modules/settings.js's
+  // Preferences tab can flip the theme too and have the header's button
+  // stay in sync, instead of duplicating this logic with its own
+  // separate body-class/localStorage handling that could drift from it.
+  function applyTheme(light) {
+    document.body.classList.toggle('theme-light', light);
     const btn = document.getElementById('shellThemeBtn');
-    if (!btn) return;
-
-    function applyTheme(light) {
-      document.body.classList.toggle('theme-light', light);
+    if (btn) {
       btn.querySelector('i').className = light ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
       btn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
     }
+    try { localStorage.setItem(THEME_STORAGE_KEY, light ? 'light' : 'dark'); } catch { /* non-fatal — just won't persist */ }
+  }
+
+  function isLightTheme() {
+    return document.body.classList.contains('theme-light');
+  }
+
+  function initTheme() {
+    const btn = document.getElementById('shellThemeBtn');
+    if (!btn) return;
 
     // Restore the user's choice — the toggle used to silently reset to
     // dark on every reload since nothing persisted it.
@@ -93,11 +116,7 @@ MKNexus.Header = (function () {
     try { stored = localStorage.getItem(THEME_STORAGE_KEY); } catch { /* storage unavailable — falls back to dark */ }
     applyTheme(stored === 'light');
 
-    btn.addEventListener('click', () => {
-      const light = !document.body.classList.contains('theme-light');
-      applyTheme(light);
-      try { localStorage.setItem(THEME_STORAGE_KEY, light ? 'light' : 'dark'); } catch { /* non-fatal — just won't persist */ }
-    });
+    btn.addEventListener('click', () => applyTheme(!isLightTheme()));
   }
 
   // A real (if intentionally small) quick-jump across the module nav
@@ -156,5 +175,5 @@ MKNexus.Header = (function () {
     document.addEventListener('click', () => closePanels());
   }
 
-  return { init, setBreadcrumb };
+  return { init, setBreadcrumb, applyTheme, isLightTheme };
 })();
