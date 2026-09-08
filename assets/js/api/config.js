@@ -2,11 +2,11 @@ window.MKNexus = window.MKNexus || {};
 
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
-  // Redeployed again after adding users.gs to the live project (full user
-  // CRUD/role/password handlers — see backend/mk-nexus-core/users.gs's
-  // header comment for the account-takeover and IsActive fixes that went
-  // in with it). See backend/mk-nexus-core/README.md for the full change log.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbw2oF9Sj-lxDTaqF2fiEK4zl2bAKDQt1QSmfM7Y7zSPjG3ToKGiX6ZBP8FYobSL3XycuQ/exec',
+  // Redeployed again after adding org-structure.gs to the live project
+  // (Sector/Administration/Region Org Chart CRUD — see
+  // backend/mk-nexus-core/org-structure.gs and modules/org-chart.js).
+  // See backend/mk-nexus-core/README.md for the full change log.
+  baseUrl: 'https://script.google.com/macros/s/AKfycbytBzg8oxpeEsugX41kBtorHGU_CFqEFeCFEJbtelb6OTiPFQgbyLHKA5CZ_NemErbIvQ/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
