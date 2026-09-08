@@ -2,10 +2,11 @@ window.MKNexus = window.MKNexus || {};
 
 /* Single source of truth for the deployed Apps Script API and its router. */
 MKNexus.ApiConfig = Object.freeze({
-  // Redeployed again (New deployment, hence another URL change) after
-  // switching avatar.gs's photo URL to Drive's thumbnail endpoint. See
-  // backend/mk-nexus-core/README.md for the full change log.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbwlaIpRn2zVqih4M8AYvWMLls1dMTi1q7VfIFZ_QHyZbXxuTdwxB-tlbUUUb3nBm_dq6w/exec',
+  // Redeployed again after adding users.gs to the live project (full user
+  // CRUD/role/password handlers — see backend/mk-nexus-core/users.gs's
+  // header comment for the account-takeover and IsActive fixes that went
+  // in with it). See backend/mk-nexus-core/README.md for the full change log.
+  baseUrl: 'https://script.google.com/macros/s/AKfycbw2oF9Sj-lxDTaqF2fiEK4zl2bAKDQt1QSmfM7Y7zSPjG3ToKGiX6ZBP8FYobSL3XycuQ/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
