@@ -226,3 +226,64 @@ needed — the column appears on first use.
   but doesn't need a `ManagerID` of its own.
 
 Leave both blank for accounts with no sector/team concept (Admin).
+
+## Users CRUD (`users.gs` — new file)
+
+Pasted in from the live Apps Script project, which had it but this repo
+never did (see the "Files not listed here" note at the top). Fixed two
+real bugs on the way in — see the file's own header comment for the
+full detail:
+- **Critical:** `handleChangePassword_` checked
+  `CONFIG.ROLES.ADMINISTRATOR`, a constant that doesn't exist
+  (`CONFIG.ROLES.ADMIN` is the real one). `getRoleRank_(undefined)` is
+  `-1`, which every real role's rank is always `>=`, so the admin-only
+  branch was `true` for literally any logged-in user — anyone could
+  reset anyone else's password with no knowledge of the current one.
+  Fixed to reference `CONFIG.ROLES.ADMIN`.
+- `Active` vs `IsActive` column mismatch — this file wrote/read a column
+  called `Active`; `directory.gs`'s report scoping (and login's
+  active-account gate in `auth.gs`) reads `IsActive`. Activate/
+  Deactivate silently didn't affect scoping or login. Fixed to use
+  `IsActive` throughout.
+- `handleCreateUser_` also now passes through org/geo placement fields
+  (`SectorID`/`ManagerID`/`OrgAdministrationID`/`OrgRegionID`/etc.) the
+  same way `handleUpdateUser_` already did — previously a brand-new
+  user's placement fields from the Settings "add user" form were
+  silently dropped on create, requiring an immediate follow-up
+  `updateUser` call to actually set them.
+
+## Org Chart (`org-structure.gs` — new file)
+
+Three new sheets model an organizational reporting hierarchy —
+**Sector → Administration → Region** — kept entirely separate from the
+geographic Governorate/Administration/District/Agricultural_Zone sheets
+above (those are real land boundaries for the GIS map; this is "who
+reports to whom", unrelated to geography). Named `Org_Administrations`
+specifically to avoid colliding with the already-existing
+`Administrations` (geographic) sheet.
+
+**Sheet columns to create by hand** (Admin can then manage rows entirely
+from the website's Org Chart tool — no more manual sheet editing):
+- `Org_Sectors`: `ID | Name | CreatedAt | UpdatedAt`
+- `Org_Administrations`: `ID | Name | SectorID | CreatedAt | UpdatedAt`
+- `Org_Regions`: `ID | Name | AdministrationID | CreatedAt | UpdatedAt`
+
+**Wiring a user into the tree** — two new columns on `Users`, alongside
+the existing `SectorID`/`ManagerID` (which keep working unchanged):
+- `OrgAdministrationID` — set on a **Manager**'s own row to the
+  `Org_Administrations.ID` they head.
+- `OrgRegionID` — set on an **Engineer**/**Supervisor**'s row to the
+  `Org_Regions.ID` they belong to.
+- A **Section Manger** keeps using the existing `SectorID` column,
+  now pointing at an `Org_Sectors.ID` instead of a free-text code.
+
+New route `getOrgStructure` (Manager+ read, same gate as
+`getTeamDirectory` — the frontend needs the tree to resolve scope, not
+just Admins running the tool) returns the three sheets flat; new
+`create`/`update`/`delete` routes per level are Admin-only. Every delete
+handler refuses to remove a node with children still pointing at it
+(an Administration under a Sector, a Region under an Administration, or
+a user still on a Region) — reassign or delete those first.
+`directory.gs`'s `getTeamDirectory` roster now also carries
+`orgAdministrationId`/`orgRegionId` per row for the frontend to
+cross-reference.

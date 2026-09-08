@@ -68,6 +68,12 @@ function getRouteTable_() {
     // above Manager) — Engineer/Supervisor cannot.
     [CONFIG.ACTIONS.GET_TEAM_DIRECTORY]: { fn: handleGetTeamDirectory_, roles: [CONFIG.ROLES.MANAGER] },
 
+    // New — see org-structure.gs. Same Manager+ read gate as
+    // GET_TEAM_DIRECTORY: the frontend needs the full Sector/
+    // Administration/Region tree to resolve a Manager's or Section
+    // Manger's report scope, not just Admins running the Org Chart tool.
+    [CONFIG.ACTIONS.GET_ORG_STRUCTURE]: { fn: handleGetOrgStructure_, roles: [CONFIG.ROLES.MANAGER] },
+
     // Writes — ADMIN only (see ROLE MODEL UPDATE above)
     [CONFIG.ACTIONS.CREATE_GOVERNORATE]: { fn: handleCreateGovernorate_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.CREATE_ADMINISTRATION]: { fn: handleCreateAdministration_, roles: [CONFIG.ROLES.ADMIN] },
@@ -77,6 +83,10 @@ function getRouteTable_() {
     [CONFIG.ACTIONS.CREATE_KPI]: { fn: handleCreateKPI_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.CREATE_USER]: { fn: handleCreateUser_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.CREATE_PRESENTATION]: { fn: handleCreatePresentation_, roles: [CONFIG.ROLES.ADMIN] },
+    // New — see org-structure.gs. Admin-only writes for the Org Chart tool.
+    [CONFIG.ACTIONS.CREATE_ORG_SECTOR]: { fn: handleCreateOrgSector_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.CREATE_ORG_ADMINISTRATION]: { fn: handleCreateOrgAdministration_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.CREATE_ORG_REGION]: { fn: handleCreateOrgRegion_, roles: [CONFIG.ROLES.ADMIN] },
 
     [CONFIG.ACTIONS.UPDATE_GOVERNORATE]: { fn: handleUpdateGovernorate_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.UPDATE_ADMINISTRATION]: { fn: handleUpdateAdministration_, roles: [CONFIG.ROLES.ADMIN] },
@@ -98,6 +108,9 @@ function getRouteTable_() {
     // someone else's avatar.
     [CONFIG.ACTIONS.UPLOAD_AVATAR]: { fn: handleUploadAvatar_, roles: [CONFIG.ROLES.SUPERVISOR] },
     [CONFIG.ACTIONS.REORDER_PRESENTATION]: { fn: handleReorderPresentation_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.UPDATE_ORG_SECTOR]: { fn: handleUpdateOrgSector_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.UPDATE_ORG_ADMINISTRATION]: { fn: handleUpdateOrgAdministration_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.UPDATE_ORG_REGION]: { fn: handleUpdateOrgRegion_, roles: [CONFIG.ROLES.ADMIN] },
 
     [CONFIG.ACTIONS.DELETE_GOVERNORATE]: { fn: handleDeleteGovernorate_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.DELETE_ADMINISTRATION]: { fn: handleDeleteAdministration_, roles: [CONFIG.ROLES.ADMIN] },
@@ -106,7 +119,10 @@ function getRouteTable_() {
     [CONFIG.ACTIONS.DELETE_GEOJSON]: { fn: handleDeleteGeoJSON_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.DELETE_KPI]: { fn: handleDeleteKPI_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.DELETE_USER]: { fn: handleDeleteUser_, roles: [CONFIG.ROLES.ADMIN] },
-    [CONFIG.ACTIONS.DELETE_PRESENTATION]: { fn: handleDeletePresentation_, roles: [CONFIG.ROLES.ADMIN] }
+    [CONFIG.ACTIONS.DELETE_PRESENTATION]: { fn: handleDeletePresentation_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.DELETE_ORG_SECTOR]: { fn: handleDeleteOrgSector_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.DELETE_ORG_ADMINISTRATION]: { fn: handleDeleteOrgAdministration_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.DELETE_ORG_REGION]: { fn: handleDeleteOrgRegion_, roles: [CONFIG.ROLES.ADMIN] }
   };
 }
 

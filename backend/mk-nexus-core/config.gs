@@ -22,7 +22,19 @@ const CONFIG = {
     KPI: 'KPI',
     PRESENTATION: 'Presentation',
     SETTINGS: 'Settings',
-    AUDIT_LOG: 'Audit_Log'
+    AUDIT_LOG: 'Audit_Log',
+
+    // NEW — organizational reporting hierarchy (Sector -> Administration ->
+    // Region), entirely separate from the geographic GOVERNORATES/
+    // ADMINISTRATIONS/DISTRICTS/AGRICULTURAL_ZONES sheets above (those model
+    // real-world land boundaries for the GIS map; these model "who reports
+    // to whom" for the Org Chart admin tool and attendance/expenses/rent
+    // report scoping). Deliberately named "Org_Administrations", not
+    // "Administrations" — that name is already taken by the geographic
+    // sheet and would collide with CONFIG.SHEETS.ADMINISTRATIONS above.
+    ORG_SECTORS: 'Org_Sectors',
+    ORG_ADMINISTRATIONS: 'Org_Administrations',
+    ORG_REGIONS: 'Org_Regions'
   },
 
   // ROLES ALIGNED TO THE REAL USERS SHEET (was 'Administrator'/'Manager'/
@@ -68,6 +80,21 @@ const CONFIG = {
     GET_USERS: 'getUsers',
     GET_AUDIT_LOG: 'getAuditLog',
     GET_TEAM_DIRECTORY: 'getTeamDirectory', // see directory.gs — sector-scoping roster for Rent/Expenses reports
+
+    // NEW — Org Chart (Sector/Administration/Region hierarchy). See
+    // org-structure.gs. Reads are Manager+ (same gate as GET_TEAM_DIRECTORY,
+    // since the frontend needs the full tree to resolve a Manager's or
+    // Section Manger's scope); writes are Admin-only, wired in router.gs.
+    GET_ORG_STRUCTURE: 'getOrgStructure',
+    CREATE_ORG_SECTOR: 'createOrgSector',
+    UPDATE_ORG_SECTOR: 'updateOrgSector',
+    DELETE_ORG_SECTOR: 'deleteOrgSector',
+    CREATE_ORG_ADMINISTRATION: 'createOrgAdministration',
+    UPDATE_ORG_ADMINISTRATION: 'updateOrgAdministration',
+    DELETE_ORG_ADMINISTRATION: 'deleteOrgAdministration',
+    CREATE_ORG_REGION: 'createOrgRegion',
+    UPDATE_ORG_REGION: 'updateOrgRegion',
+    DELETE_ORG_REGION: 'deleteOrgRegion',
 
     // Create
     CREATE_GOVERNORATE: 'createGovernorate',
@@ -123,7 +150,10 @@ const CONFIG = {
     KPI: 'KPI',
     USER: 'User',
     SETTINGS: 'Settings',
-    PRESENTATION: 'Presentation'
+    PRESENTATION: 'Presentation',
+    ORG_SECTOR: 'OrgSector',
+    ORG_ADMINISTRATION: 'OrgAdministration',
+    ORG_REGION: 'OrgRegion'
   },
 
   AUDIT_ACTIONS: {

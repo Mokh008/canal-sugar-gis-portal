@@ -1,0 +1,127 @@
+/* =====================================================================
+   MK NEXUS — Org Chart Module
+   Same design language as settings-module.css (shared tokens, no
+   hardcoded surface/text colors) with its own accent (--module-orgchart,
+   tokens.css). Three cascading columns (Sector -> Administration ->
+   Region, "Miller columns" style) plus a Members panel for whichever
+   node is currently selected.
+
+   Table of contents:
+     1. Header
+     2. Columns (Sector / Administration / Region)
+     3. Node rows
+     4. Members panel
+     5. Name modal (create/rename, shared across all 3 levels)
+     6. Loader
+     7. Responsive
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   1. HEADER
+--------------------------------------------------------------------- */
+.orgchart-module { display: flex; flex-direction: column; gap: var(--space-5); height: 100%; overflow-y: auto; }
+.orgchart-module__header { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.orgchart-module__eyebrow { color: var(--module-orgchart); }
+.orgchart-module__title { font-family: var(--font-display); font-size: clamp(24px, 2.6vw, 32px); font-weight: 700; color: var(--text-primary); margin-top: 6px; }
+.orgchart-module__subtitle { font-size: 13.5px; color: var(--text-muted); margin-top: 6px; }
+
+/* ---------------------------------------------------------------------
+   2. COLUMNS
+--------------------------------------------------------------------- */
+.orgchart-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1 1 auto; min-height: 320px; }
+
+.orgchart-column {
+  display: flex; flex-direction: column; gap: 10px;
+  border-radius: var(--card-radius); border: var(--card-border); background: var(--card-bg);
+  box-shadow: var(--card-shadow); padding: var(--space-4); overflow: hidden;
+}
+.orgchart-column__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.orgchart-column__title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--module-orgchart); }
+.orgchart-column__add {
+  width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-soft); background: var(--module-orgchart-soft); color: var(--module-orgchart); font-size: 13px;
+  transition: filter var(--duration-fast) var(--ease-premium);
+}
+.orgchart-column__add:hover { filter: brightness(1.15); }
+.orgchart-column__add:disabled { opacity: 0.4; cursor: not-allowed; }
+.orgchart-column__list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1 1 auto; }
+.orgchart-column__empty { text-align: center; padding: 24px 8px; color: var(--text-muted); font-size: 12.5px; }
+
+/* ---------------------------------------------------------------------
+   3. NODE ROWS
+--------------------------------------------------------------------- */
+.orgchart-node {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.025); cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium);
+}
+.orgchart-node:hover { border-color: var(--line-strong); }
+.orgchart-node.is-selected { background: var(--module-orgchart-soft); border-color: rgba(168, 136, 224, 0.4); }
+.orgchart-node__name { font-size: 13.5px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.orgchart-node__count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
+.orgchart-node__actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.orgchart-node__actions .orgchart-icon-btn { opacity: 0; }
+.orgchart-node:hover .orgchart-icon-btn, .orgchart-node.is-selected .orgchart-icon-btn { opacity: 1; }
+
+.orgchart-icon-btn {
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary); font-size: 10.5px;
+  transition: color var(--duration-fast) var(--ease-premium), border-color var(--duration-fast) var(--ease-premium), background var(--duration-fast) var(--ease-premium), opacity var(--duration-fast) var(--ease-premium);
+}
+.orgchart-icon-btn:hover { color: var(--text-primary); border-color: var(--line-strong); }
+.orgchart-icon-btn--danger:hover { color: var(--danger-text); border-color: rgba(224, 122, 106, 0.4); background: var(--danger-soft); }
+
+/* ---------------------------------------------------------------------
+   4. MEMBERS PANEL
+--------------------------------------------------------------------- */
+.orgchart-members {
+  border-radius: var(--card-radius); border: var(--card-border); background: var(--card-bg);
+  box-shadow: var(--card-shadow); padding: var(--space-4);
+}
+.orgchart-members__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: var(--space-3); }
+.orgchart-members__title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.orgchart-members__breadcrumb { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.orgchart-members__assign { display: flex; align-items: center; gap: 8px; }
+.orgchart-members__assign select { min-width: 220px; }
+
+.orgchart-member-list { display: flex; flex-direction: column; gap: 6px; }
+.orgchart-member-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.02);
+}
+.orgchart-member-row__name { font-size: 13.5px; color: var(--text-primary); }
+.orgchart-member-row__role { font-size: 11px; color: var(--module-orgchart); font-family: var(--font-mono); margin-inline-start: 8px; }
+
+/* ---------------------------------------------------------------------
+   5. NAME MODAL (create/rename)
+--------------------------------------------------------------------- */
+.orgchart-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 8, 7, 0.72); backdrop-filter: blur(10px); }
+.orgchart-modal.is-open { display: flex; }
+.orgchart-modal__panel {
+  width: min(420px, 100%); border-radius: var(--card-radius); border: var(--card-border);
+  background: var(--surface-panel-raised, var(--card-bg)); box-shadow: var(--shadow-panel); padding: var(--space-5);
+}
+.orgchart-modal__title { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--space-4); }
+.orgchart-modal__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: var(--space-4); }
+
+/* ---------------------------------------------------------------------
+   6. LOADER
+--------------------------------------------------------------------- */
+.orgchart-loader {
+  position: fixed; inset: 0; z-index: var(--z-modal); display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; background: rgba(0, 8, 7, 0.55); backdrop-filter: blur(6px);
+}
+.orgchart-loader.is-visible { display: flex; }
+.orgchart-spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: var(--module-orgchart); animation: orgchart-spin 0.8s linear infinite; }
+.orgchart-loader-text { font-size: 13px; color: var(--text-secondary); }
+@keyframes orgchart-spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------------
+   7. RESPONSIVE
+--------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .orgchart-columns { grid-template-columns: 1fr; }
+  .orgchart-column { min-height: 220px; }
+}

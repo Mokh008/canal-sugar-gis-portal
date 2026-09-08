@@ -14,6 +14,11 @@ MKNexus.Config = (function () {
   // down or open it up once its real audience is decided.
   const MODULES = [
     { id: 'geo',          label: 'Geo Intelligence', icon: 'fa-solid fa-earth-africa', default: true, roles: ['Admin'] },
+    // New — Sector/Administration/Region hierarchy admin tool (see
+    // backend/mk-nexus-core/org-structure.gs and modules/org-chart.js).
+    // Admin-only: it writes the tree everyone else's report scoping
+    // reads from, same trust level as Geo Intelligence/user management.
+    { id: 'orgchart',     label: 'Org Chart',        icon: 'fa-solid fa-sitemap',                     roles: ['Admin'] },
     { id: 'operations',   label: 'Operations',        icon: 'fa-solid fa-gears',                       roles: ['Admin', 'Section Manger', 'Manager'] },
     { id: 'attendance',   label: 'Attendance',        icon: 'fa-solid fa-user-clock',                  roles: ['Admin', 'Section Manger', 'Manager'] },
     { id: 'expenses',     label: 'Expenses',          icon: 'fa-solid fa-file-invoice-dollar',         roles: ['Admin', 'Section Manger', 'Manager', 'Engineer', 'Supervisor'] },

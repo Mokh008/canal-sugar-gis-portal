@@ -58,6 +58,13 @@ function handleGetTeamDirectory_(context) {
       engineerId: u.EngineerID ? String(u.EngineerID).trim() : '',
       sectorId: u.SectorID ? String(u.SectorID).trim() : '',
       managerId: u.ManagerID ? String(u.ManagerID).trim() : '',
+      // NEW — Org Chart placement (see org-structure.gs). orgAdministrationId
+      // is set on Manager rows, orgRegionId on Engineer/Supervisor rows.
+      // Added alongside sectorId/managerId, not instead of them, so the
+      // existing 2-tier scoping in team-directory.js keeps working
+      // unchanged until it's migrated to walk the 3-tier tree.
+      orgAdministrationId: u.OrgAdministrationID ? String(u.OrgAdministrationID).trim() : '',
+      orgRegionId: u.OrgRegionID ? String(u.OrgRegionID).trim() : '',
       name: u.FullName || '',
       role: normalizeRole_(u.Role)
     }))

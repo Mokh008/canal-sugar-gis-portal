@@ -7,7 +7,7 @@ MKNexus.Shell = (function () {
 
 function registerModuleStubs() {
     MKNexus.Config.MODULES.forEach((mod) => {
-      if (mod.id === 'geo' || mod.id === 'rent' || mod.id === 'expenses' || mod.id === 'attendance' || mod.id === 'settings') return; // real modules — registered separately below
+      if (mod.id === 'geo' || mod.id === 'rent' || mod.id === 'expenses' || mod.id === 'attendance' || mod.id === 'settings' || mod.id === 'orgchart') return; // real modules — registered separately below
       MKNexus.Router.register(mod.id, {
         mount(container) {
           container.innerHTML = `
@@ -28,6 +28,7 @@ function registerModuleStubs() {
     MKNexus.Router.register('expenses', MKNexus.ExpensesModule);
     MKNexus.Router.register('attendance', MKNexus.AttendanceModule);
     MKNexus.Router.register('settings', MKNexus.SettingsModule);
+    MKNexus.Router.register('orgchart', MKNexus.OrgChartModule);
   }
 
   // Re-reveals the (already-initialized) shell with its entrance

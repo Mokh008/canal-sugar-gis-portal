@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="assets/css/expenses-module.css?v=3">
   <link rel="stylesheet" href="assets/css/attendance-module.css?v=2">
   <link rel="stylesheet" href="assets/css/settings-module.css?v=2">
+  <link rel="stylesheet" href="assets/css/org-chart-module.css?v=1">
   <!-- overrides.css removed: its ~18 hardcoded-color patch rules were
        folded back into tokens.css/shell.css/style.css using design
        tokens (see those files' history) — nothing here needs a
@@ -398,6 +399,12 @@
        same as login/Geo Intelligence): getUsers/createUser/updateUser/
        deleteUser/activateUser/deactivateUser/assignRole. -->
   <script src="assets/js/modules/settings.js?v=2"></script>
+
+  <!-- Org Chart module — Sector/Administration/Region hierarchy admin
+       tool, same mk-nexus-core backend as Settings' user management
+       (org-structure.gs) plus getUsers/updateUser (users.gs) to place
+       people into it. Admin-only. -->
+  <script src="assets/js/modules/org-chart.js?v=1"></script>
 
   <script src="assets/js/core/ui/shell.js?v=5"></script>
 

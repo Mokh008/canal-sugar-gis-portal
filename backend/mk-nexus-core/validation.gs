@@ -46,6 +46,23 @@ const VALIDATION_SCHEMAS_ = {
   [CONFIG.ENTITY_TYPES.PRESENTATION]: {
     required: ['Title', 'Order'],
     parent: null
+  },
+
+  // NEW — Org Chart hierarchy (Sector -> Administration -> Region). Reuses
+  // the exact same required/parent pattern as GOVERNORATE/ADMINISTRATION/
+  // DISTRICT above, so validateCreatePayload_/validateHierarchy_ need no
+  // changes at all to cover these too. See org-structure.gs.
+  [CONFIG.ENTITY_TYPES.ORG_SECTOR]: {
+    required: ['Name'],
+    parent: null
+  },
+  [CONFIG.ENTITY_TYPES.ORG_ADMINISTRATION]: {
+    required: ['Name', 'SectorID'],
+    parent: { field: 'SectorID', sheet: CONFIG.SHEETS.ORG_SECTORS, idColumn: 'ID' }
+  },
+  [CONFIG.ENTITY_TYPES.ORG_REGION]: {
+    required: ['Name', 'AdministrationID'],
+    parent: { field: 'AdministrationID', sheet: CONFIG.SHEETS.ORG_ADMINISTRATIONS, idColumn: 'ID' }
   }
 };
 
