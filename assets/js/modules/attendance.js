@@ -10,70 +10,38 @@ window.MKNexus = window.MKNexus || {};
        colors are hardcoded to match those tokens (Chart.js needs literal
        color values, not CSS custom properties).
      - No separate login/auth-guard redirect — you're already
-       authenticated to be inside the shell at all. Role/region scoping
-       (see below) now reads MKNexus.SessionData.profile instead of the
-       source site's own sessionStorage("authUser") + Attendance-Login
-       redirect.
+       authenticated to be inside the shell at all.
      - Card top-accent line, KPI icons, hover-lift, and a GSAP entrance
        fade — same visual language as the Rent/Expenses modules.
 
-   KNOWN LIMITATION: the source site scoped a "region_manager" role to
-   just their own region (USER_REGION, e.g. "بنى سويف"). MK Nexus's own
-   Users sheet doesn't have a matching region field today, so every
-   logged-in user currently sees every region (getUserRegion() falls back
-   to "ALL") — the scoping code path is kept intact and will start
-   working the moment a `region` value shows up on the session profile,
-   same as isAdmin() in rent.js/expenses.js started working once role
-   values were confirmed. */
+   WHO YOU SEE COMES FROM THE ORG CHART. The source site (and this port,
+   until now) shipped a hardcoded engineer-name -> region table. That table
+   is gone: the regions on this dashboard are the Org Chart's regions, and
+   the people in each are whoever the Org Chart says are that region's
+   engineers (see core/data/team-directory.js / backend directory.gs):
+   an administration manager sees the engineers of their administration's
+   regions, a sector head sees their whole sector, Admin sees everyone
+   (plus a group of active Engineer/Supervisor accounts placed nowhere yet,
+   so a gap in the Org Chart is visible instead of silently missing).
+
+   Fingerprint rows only carry a person's NAME (no ID), so a row is matched
+   to a person by name: Users.AttendanceName if that optional column is
+   filled in (the name exactly as the fingerprint device prints it),
+   otherwise their full name. Rows that match nobody on the viewer's team
+   are ignored; for Admin they're listed under the dashboard so a
+   misspelled name can be fixed. */
 MKNexus.AttendanceModule = (function () {
   let containerEl = null;
-  let dateInput, totalCountEl, inCountEl, outCountEl, userBadgeEl, departmentsBoxEl;
+  let dateInput, totalCountEl, inCountEl, outCountEl, userBadgeEl, departmentsBoxEl, unmatchedBoxEl;
   let barChart = null;
   let pieChart = null;
   let refreshTimer = null;
 
-  // Straight port of the source site's hardcoded engineer→region map —
-  // there is no backend endpoint for this, it's client-side data there too.
-  const ENGINEER_DEPT = {
-    'Mohamed Abdellatif Abdelhamid Aly': 'بنى سويف',
-    'Efat Youssef Assad Hanna': 'شمال المنيا',
-    'Waleed Mahmoud Ismaiel Abdelrahim': 'شمال المنيا',
-    'Ahmed Abdelnasser Mohamed Aly': 'توريدات',
-    'Amr Abdullah Abdrabbo Hlhil': 'آلى',
-    'Wael Ibrahim Eid Mohamed': 'بنى سويف',
-    'Aly Aboseif Abdelbadea Aly Abosaif': 'جنوب المنيا',
-    'Mahmoud Fathy Youssef Ismail': 'بنى سويف',
-    'Hussien Kamel Abdelkarem Abdelelamam': 'جنوب المنيا',
-    'Reda Mekhemar Abdelhamid Abdelhakim': 'جنوب المنيا',
-    'Mohamed Khaled Mohamed Khaled': 'توريدات',
-    'Alaaeldien Mohamed Soliman AbdelhAlym': 'آلى',
-    'Afraim Shawky Mikhail Habashy': 'شمال المنيا',
-    'Mohamed Hussien Mohamed Ahmed': 'جنوب المنيا',
-    'Ahmed Abdelfattah Aly Aly': 'بنى سويف',
-    'Mohamed Moustafa Abdelrahman Reyad': 'جنوب المنيا',
-    'Abdullah Shaaban Saad Mourad': 'بنى سويف',
-    'Elfarouk Mohamed Ahmed Mohamed': 'متابعه',
-    'Essam Sayed Mohamed Seddik': 'جنوب المنيا',
-    'Eltawab Mahmoud Aly Aboelhassan': 'آلى',
-    'Ibrahim Abdelnaser Abdelshafy Abdellatif': 'آلى',
-    'Mohamed Saeed Aboelhagag Hassan': 'آلى',
-    'Ahmed Mohamed Farouk Abdelrheam': 'بنى سويف',
-    'Ahmed Rabie Abdelrazik Hussien': 'شمال المنيا',
-    'Mohamed Atef Mahmoud Elgeneidy': 'بنى سويف',
-    'Ali Ahmed Hassan Hamed': 'آلى',
-    'Assem Hassan Abdelshafy Hassan': 'بنى سويف',
-    'Omar Metwally Ahmed Mohamed Salem': 'آلى',
-    'Abdelmoneam Hassan Hafez Karrat': 'آلى',
-    'Mahmoud Ramadan Mahmoud Abdelaziz': 'آلى',
-    'Mahmoud Khaled': 'جنوب المنيا',
-    'Mohamed Youssef': 'شمال المنيا',
-    'Mohamed Toney Eid Abdel Zaher': 'آلى',
-    'Mohamed Ali Abdel Hafez': 'آلى',
-    'Gamal Ahmed Moustafa': 'آلى',
-    'Mohamed Khaled Kamal ElRawy': 'آلى',
-  };
-  const ENGINEERS = Object.keys(ENGINEER_DEPT);
-  const DEPARTMENTS = [...new Set(Object.values(ENGINEER_DEPT))];
+  // Built from the Org Chart on every mount (see applyScope()).
+  let groups = []; // [{ key, title, subtitle, members: [teamMember] }] — one per region
+  let allMembers = [];
+  let memberByName = new Map(); // normalized fingerprint name -> teamMember
+  let mountId = 0;
 
   /* -------------------------------------------------------------------
      Utilities — escapeHtml/prefersReducedMotion/animateIn now live in
@@ -97,13 +65,36 @@ MKNexus.AttendanceModule = (function () {
   function getUserRole() {
     return (MKNexus.SessionData?.profile?.role || '').trim().toLowerCase();
   }
-  function getUserRegion() {
-    const region = (MKNexus.SessionData?.profile?.region || '').trim().toUpperCase();
-    return region || 'ALL';
+
+  // Fingerprint names and Users names are typed by different people —
+  // compare them ignoring case and stray/double spaces.
+  function normalizeName(n) {
+    return String(n || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
-  function visibleEngineers() {
-    const region = getUserRegion();
-    return region === 'ALL' ? ENGINEERS : ENGINEERS.filter((e) => ENGINEER_DEPT[e] === region);
+
+  // Turns the Org Chart scope into the region groups this dashboard draws.
+  function applyScope() {
+    const scope = MKNexus.TeamDirectory.getScope();
+    const byRegion = new Map();
+    scope.team.forEach((member) => {
+      if (!byRegion.has(member.regionId)) {
+        byRegion.set(member.regionId, { key: member.regionId, title: member.regionName, subtitle: member.administrationName, members: [] });
+      }
+      byRegion.get(member.regionId).members.push(member);
+    });
+    groups = [...byRegion.values()].sort((a, b) =>
+      (a.subtitle || '').localeCompare(b.subtitle || '', 'ar') || (a.title || '').localeCompare(b.title || '', 'ar'));
+    if (scope.unassigned.length) {
+      groups.push({ key: '__unassigned__', title: 'غير موزّعين', subtitle: 'لم يتم وضعهم في أي منطقة بعد', members: scope.unassigned });
+    }
+
+    allMembers = groups.flatMap((g) => g.members);
+    memberByName = new Map();
+    allMembers.forEach((member) => {
+      [member.attendanceName, member.name].map(normalizeName).filter(Boolean).forEach((key) => {
+        if (!memberByName.has(key)) memberByName.set(key, member);
+      });
+    });
   }
 
   const prefersReducedMotion = MKNexus.Utils.prefersReducedMotion;
@@ -119,7 +110,7 @@ MKNexus.AttendanceModule = (function () {
           <div class="attendance-module__heading">
             <span class="type-eyebrow attendance-module__eyebrow">ATTENDANCE OPERATIONS</span>
             <h1 class="attendance-module__title">لوحة متابعة الحضور</h1>
-            <p class="attendance-module__subtitle">حضور وانصراف المهندسين حسب المنطقة، بتحديث تلقائي كل 30 ثانية</p>
+            <p class="attendance-module__subtitle">حضور وانصراف مهندسي فريقك حسب المنطقة، بتحديث تلقائي كل 30 ثانية</p>
           </div>
           <span class="attendance-module__badge" id="attUserBadge"></span>
         </div>
@@ -141,6 +132,7 @@ MKNexus.AttendanceModule = (function () {
         </div>
 
         <div class="attendance-dept-grid" id="attDepartmentsBox"></div>
+        <div class="attendance-unmatched" id="attUnmatchedBox" hidden></div>
       </div>`;
   }
 
@@ -158,32 +150,37 @@ MKNexus.AttendanceModule = (function () {
       </div>`;
   }
 
-  function renderDepartments(deptData, presentSet, outDeptData, outSet) {
-    const region = getUserRegion();
-    const visible = visibleEngineers();
+  function renderGroups(stats) {
     const emptyRow = "<span class='attendance-empty-hint'>-</span>";
 
-    departmentsBoxEl.innerHTML = DEPARTMENTS.filter((dept) => region === 'ALL' || region === dept).map((dept) => {
-      const all = visible.filter((e) => ENGINEER_DEPT[e] === dept);
-      const present = [...deptData[dept].set];
-      const absent = all.filter((e) => !presentSet.has(e));
-      const notOut = present.filter((p) => !outSet.has(p));
+    if (!groups.length) {
+      const hint = MKNexus.Access.isAdmin()
+        ? 'لسه محدش متوزّع على مناطق — وزّع المهندسين من موديول Org Chart.'
+        : 'مفيش مهندسين تابعين ليك في الهيكل التنظيمي. الأدمن بيوزّعهم من موديول Org Chart.';
+      departmentsBoxEl.innerHTML = `<div class="attendance-card attendance-empty-state">${escapeHtml(hint)}</div>`;
+      return;
+    }
 
-      const presentRows = deptData[dept].rows.map((p) => buildAttRow(p.name, p.location, p.time)).join('') || emptyRow;
-      const absentNames = absent.map((a) => `<span class="attendance-name-chip">${escapeHtml(shortName(a))}</span>`).join('') || emptyRow;
-      const outRows = outDeptData[dept].rows.map((o) => buildAttRow(o.name, o.location, o.time)).join('') || emptyRow;
-      const notOutNames = notOut.map((p) => `<span class="attendance-name-chip">${escapeHtml(shortName(p))}</span>`).join('') || emptyRow;
+    departmentsBoxEl.innerHTML = groups.map((group) => {
+      const stat = stats.get(group.key);
+      const present = group.members.filter((m) => stat.inById.has(m.userId));
+      const absent = group.members.filter((m) => !stat.inById.has(m.userId));
+      const notOut = present.filter((m) => !stat.outById.has(m.userId));
+      const leftMembers = group.members.filter((m) => stat.outById.has(m.userId));
+
+      const rowsOf = (list, byId) => list.map((m) => { const r = byId.get(m.userId); return buildAttRow(r.name, r.location, r.time); }).join('') || emptyRow;
+      const chipsOf = (list) => list.map((m) => `<span class="attendance-name-chip">${escapeHtml(shortName(m.name))}</span>`).join('') || emptyRow;
 
       return `
         <div class="attendance-card attendance-dept-card">
-          <h4 class="attendance-dept-card__title">${escapeHtml(dept)}</h4>
+          <h4 class="attendance-dept-card__title">${escapeHtml(group.title)}${group.subtitle ? ` <small class="attendance-dept-card__sub">${escapeHtml(group.subtitle)}</small>` : ''}</h4>
           <div class="attendance-split">
-            <div class="attendance-inner-box"><b>حضر (${present.length})</b>${presentRows}</div>
-            <div class="attendance-inner-box"><b>غاب (${absent.length})</b>${absentNames}</div>
+            <div class="attendance-inner-box"><b>حضر (${present.length})</b>${rowsOf(present, stat.inById)}</div>
+            <div class="attendance-inner-box"><b>غاب (${absent.length})</b>${chipsOf(absent)}</div>
           </div>
           <div class="attendance-split attendance-split--out">
-            <div class="attendance-inner-box"><b>انصرف (${outDeptData[dept].set.size})</b>${outRows}</div>
-            <div class="attendance-inner-box"><b>لم يبصم انصراف</b>${notOutNames}</div>
+            <div class="attendance-inner-box"><b>انصرف (${leftMembers.length})</b>${rowsOf(leftMembers, stat.outById)}</div>
+            <div class="attendance-inner-box"><b>لم يبصم انصراف</b>${chipsOf(notOut)}</div>
           </div>
         </div>`;
     }).join('');
@@ -191,13 +188,26 @@ MKNexus.AttendanceModule = (function () {
     animateIn(departmentsBoxEl);
   }
 
-  function drawCharts(deptData, inCount, roleTotal) {
+  // Fingerprint names that match nobody on the viewer's team. Only worth
+  // showing to an Admin (for everyone else it is simply the rest of the
+  // company) — it is how a misspelled name gets noticed and fixed via the
+  // user's AttendanceName.
+  function renderUnmatched(names) {
+    if (!MKNexus.Access.isAdmin() || !names.length) { unmatchedBoxEl.hidden = true; unmatchedBoxEl.innerHTML = ''; return; }
+    unmatchedBoxEl.hidden = false;
+    unmatchedBoxEl.innerHTML = `
+      <details class="attendance-card">
+        <summary>بصمات لأسماء غير مسجّلة في الهيكل (${names.length})</summary>
+        <p class="attendance-unmatched__hint">لو الاسم ده لمهندس، طابقه مع اسم المستخدم أو حط الاسم كما يظهر في جهاز البصمة في خانة «اسم البصمة» من الإعدادات.</p>
+        <div>${names.map((n) => `<span class="attendance-name-chip">${escapeHtml(n)}</span>`).join('')}</div>
+      </details>`;
+  }
+
+  function drawCharts(stats, inCount, roleTotal) {
     if (typeof Chart === 'undefined') return;
     if (barChart) barChart.destroy();
     if (pieChart) pieChart.destroy();
 
-    const region = getUserRegion();
-    const chartDepts = region === 'ALL' ? DEPARTMENTS : [region];
     const gridColor = 'rgba(255, 255, 255, 0.05)';
     const labelColor = '#86988f';
 
@@ -221,9 +231,9 @@ MKNexus.AttendanceModule = (function () {
     barChart = new Chart(document.getElementById('attDeptChart'), {
       type: 'bar',
       data: {
-        labels: chartDepts,
+        labels: groups.map((g) => g.title),
         datasets: [{
-          data: chartDepts.map((d) => deptData[d]?.set.size || 0),
+          data: groups.map((g) => stats.get(g.key)?.inById.size || 0),
           backgroundColor: 'rgba(82, 201, 155, 0.7)',
           borderColor: '#3a9678',
           borderWidth: 1,
@@ -264,58 +274,47 @@ MKNexus.AttendanceModule = (function () {
     const date = dateInput.value;
     const kpiStrip = containerEl?.querySelector('.attendance-kpi-strip');
     kpiStrip?.classList.add('is-loading');
-    MKNexus.AttendanceApi.getAttendance({ role: getUserRole(), region: getUserRegion(), date })
+    // `region` is always 'ALL' now: which people you see is decided by the
+    // Org Chart (applyScope), not by a region string handed to the backend.
+    MKNexus.AttendanceApi.getAttendance({ role: getUserRole(), region: 'ALL', date })
       .then((rows) => {
-        if (!Array.isArray(rows)) return;
+        if (!Array.isArray(rows) || !containerEl) return;
 
-        const presentSet = new Set();
-        const outSet = new Set();
-        const deptData = {};
-        const outDeptData = {};
-        DEPARTMENTS.forEach((d) => {
-          deptData[d] = { set: new Set(), rows: [] };
-          outDeptData[d] = { set: new Set(), rows: [] };
-        });
-
-        const userRole = getUserRole();
-        const userRegion = getUserRegion();
+        // Per region: who scanned IN / OUT today, keyed by user. Only the
+        // first IN/OUT scan of the day is kept per person — a duplicate
+        // scan used to inflate the row lists without inflating the counts,
+        // so the two disagreed whenever someone scanned twice.
+        const stats = new Map(groups.map((g) => [g.key, { inById: new Map(), outById: new Map() }]));
+        const groupOf = new Map();
+        groups.forEach((g) => g.members.forEach((m) => groupOf.set(m.userId, g.key)));
+        const unmatched = new Set();
 
         rows.forEach((r) => {
-          if (!ENGINEER_DEPT[r.name]) return;
+          const member = memberByName.get(normalizeName(r.name));
+          if (!member) { if (r.name) unmatched.add(String(r.name).trim()); return; }
+          const stat = stats.get(groupOf.get(member.userId));
           const status = (r.status || r.Action || '').trim().toUpperCase();
-          const dept = ENGINEER_DEPT[r.name];
-          if (userRole === 'region_manager' && dept !== userRegion) return;
-          // Only the first IN/OUT scan of the day is kept per person — a
-          // duplicate scan used to inflate `rows` (and anything counted
-          // from its length) without inflating the `set`-based header
-          // count, so the two disagreed whenever someone scanned twice.
-          if (status === 'IN') {
-            if (!deptData[dept].set.has(r.name)) deptData[dept].rows.push(r);
-            presentSet.add(r.name);
-            deptData[dept].set.add(r.name);
-          }
-          if (status === 'OUT') {
-            if (!outDeptData[dept].set.has(r.name)) outDeptData[dept].rows.push(r);
-            outSet.add(r.name);
-            outDeptData[dept].set.add(r.name);
-          }
+          if (status === 'IN' && !stat.inById.has(member.userId)) stat.inById.set(member.userId, r);
+          if (status === 'OUT' && !stat.outById.has(member.userId)) stat.outById.set(member.userId, r);
         });
 
-        const roleTotal = userRegion === 'ALL' ? ENGINEERS.length : ENGINEERS.filter((e) => ENGINEER_DEPT[e] === userRegion).length;
+        const total = allMembers.length;
+        const presentCount = [...stats.values()].reduce((sum, st) => sum + st.inById.size, 0);
 
-        totalCountEl.textContent = String(roleTotal);
-        inCountEl.textContent = String(presentSet.size);
-        outCountEl.textContent = String(roleTotal - presentSet.size);
+        totalCountEl.textContent = String(total);
+        inCountEl.textContent = String(presentCount);
+        outCountEl.textContent = String(total - presentCount);
 
-        renderDepartments(deptData, presentSet, outDeptData, outSet);
-        drawCharts(deptData, presentSet.size, roleTotal);
+        renderGroups(stats);
+        renderUnmatched([...unmatched].sort());
+        drawCharts(stats, presentCount, total);
       })
       .catch((error) => {
         // Auto-refreshes every 30s, so a full-dashboard error state would
         // flicker distractingly on every transient failure — a toast is
         // enough to tell the user the numbers on screen may be stale
         // without replacing the dashboard they're currently reading.
-        MKNexus.Toast?.error(error?.message || 'Couldn’t refresh attendance data — showing the last known values.');
+        MKNexus.Toast?.error(error?.message || 'Couldn\u2019t refresh attendance data — showing the last known values.');
       })
       .finally(() => kpiStrip?.classList.remove('is-loading'));
   }
@@ -330,34 +329,46 @@ MKNexus.AttendanceModule = (function () {
     outCountEl = document.getElementById('attOutCount');
     userBadgeEl = document.getElementById('attUserBadge');
     departmentsBoxEl = document.getElementById('attDepartmentsBox');
+    unmatchedBoxEl = document.getElementById('attUnmatchedBox');
   }
 
   function mount(container) {
     containerEl = container;
     container.innerHTML = template();
     cacheDom();
+    const thisMount = ++mountId;
 
     const profile = MKNexus.SessionData?.profile;
-    userBadgeEl.textContent = profile?.name ? `${profile.name} • ${profile.role || ''}` : '';
+    const position = profile?.positions?.[0]?.path;
+    userBadgeEl.textContent = profile?.name ? `${profile.name} • ${position || profile.role || ''}` : '';
 
     dateInput.value = new Date().toLocaleDateString('en-CA');
     dateInput.addEventListener('change', loadDashboard);
-
-    loadDashboard();
-    // The router detaches this module's DOM on navigate but never called
-    // clearInterval here in an earlier draft — that's the exact "orphaned
-    // timer" bug class fixed in editor.js/geo-module.js's keydown
-    // listeners; guarding it in unmount() below instead.
-    refreshTimer = window.setInterval(loadDashboard, MKNexus.AttendanceConfig.refreshMs);
 
     if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
       gsap.fromTo([containerEl.querySelector('.attendance-module__header'), containerEl.querySelector('.attendance-datebar')],
         { opacity: 0, y: 14 },
         { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' });
     }
+
+    // The team must be known before the first render — it decides who is
+    // on the dashboard at all. Bail out if the user navigated away (or
+    // re-opened this module) while the Org Chart scope was loading.
+    MKNexus.TeamDirectory.ensureLoaded().then(() => {
+      if (thisMount !== mountId || !containerEl) return;
+      applyScope();
+      loadDashboard();
+      // The router detaches this module's DOM on navigate but never called
+      // clearInterval here in an earlier draft — that's the exact "orphaned
+      // timer" bug class fixed in editor.js/geo-module.js's keydown
+      // listeners; guarding it in unmount() below instead.
+      refreshTimer = window.setInterval(loadDashboard, MKNexus.AttendanceConfig.refreshMs);
+    });
   }
 
   function unmount(container) {
+    mountId++; // invalidates a mount() still waiting on the Org Chart scope
+    containerEl = null;
     if (refreshTimer) { window.clearInterval(refreshTimer); refreshTimer = null; }
     if (barChart) { barChart.destroy(); barChart = null; }
     if (pieChart) { pieChart.destroy(); pieChart = null; }

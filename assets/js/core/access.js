@@ -32,12 +32,6 @@ MKNexus.Access = (function () {
     SUPERVISOR: 'Supervisor',
   };
 
-  // Roles allowed to see a sector/company-wide report instead of just
-  // submitting their own entries — Rent/Expenses' "report" tab. Kept
-  // here (not per-module in config.js) since it's not a sidebar module
-  // of its own, just a view inside Rent/Expenses/Attendance.
-  const REPORT_ROLES = [ROLES.ADMIN, ROLES.SECTION_MANAGER, ROLES.MANAGER];
-
   function normalizeRole(role) {
     const lower = String(role || '').trim().toLowerCase();
     if (!lower) return '';
@@ -53,16 +47,12 @@ MKNexus.Access = (function () {
     return normalizeRole(MKNexus.SessionData?.profile?.role);
   }
 
-  function currentSectorId() {
-    return (MKNexus.SessionData?.profile?.sectorId || '').trim();
-  }
-
-  // The logged-in user's own Users-sheet row ID (e.g. "USR009") — used
-  // to scope a Manager's report views to just the engineers whose
-  // ManagerID names them, narrower than currentSectorId()'s whole-sector
-  // view. See core/data/team-directory.js.
-  function currentUserId() {
-    return (MKNexus.SessionData?.profile?.id || '').trim();
+  // True for anyone who holds a management position in the Org Chart —
+  // manager of an administration or head of a sector — regardless of their
+  // Users.Role (a job title only). Resolved server-side at login (see
+  // backend/mk-nexus-core/directory.gs) and read from the session profile.
+  function managesTeam() {
+    return MKNexus.SessionData?.profile?.managesTeam === true;
   }
 
   // A module with no `roles` array declared is treated as open to
@@ -72,7 +62,10 @@ MKNexus.Access = (function () {
     const moduleDef = MKNexus.Config.MODULES.find((m) => m.id === moduleId);
     if (!moduleDef) return false;
     if (!Array.isArray(moduleDef.roles) || !moduleDef.roles.length) return true;
-    return moduleDef.roles.includes(currentRole());
+    if (moduleDef.roles.includes(currentRole())) return true;
+    // `orgManagers` modules (Attendance) are also open to anyone the Org
+    // Chart makes a manager, even when their Users.Role is just "Engineer".
+    return Boolean(moduleDef.orgManagers) && managesTeam();
   }
 
   function visibleModules() {
@@ -88,12 +81,12 @@ MKNexus.Access = (function () {
     return (visible.find((m) => m.default) || visible[0]).id;
   }
 
-  // Rent/Expenses/Attendance's admin-style report/dashboard view —
-  // Engineer and Supervisor never get it (they only ever see/submit
-  // their own entries); everyone else does, each scoped to their own
-  // sector by the calling module (see modules/rent.js/expenses.js).
+  // Rent/Expenses' Report tab — Admin (everyone's data), or anyone the Org
+  // Chart makes a manager (their own team's data, scoped by the calling
+  // module through core/data/team-directory.js). An engineer with no
+  // management position only ever sees/submits their own entries.
   function canViewReports() {
-    return REPORT_ROLES.includes(currentRole());
+    return isAdmin() || managesTeam();
   }
 
   function isAdmin() {
@@ -101,7 +94,7 @@ MKNexus.Access = (function () {
   }
 
   return {
-    ROLES, normalizeRole, currentRole, currentSectorId, currentUserId,
+    ROLES, normalizeRole, currentRole, managesTeam,
     canAccessModule, visibleModules, defaultModuleId, canViewReports, isAdmin,
   };
 })();

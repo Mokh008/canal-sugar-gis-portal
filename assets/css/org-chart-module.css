@@ -10,7 +10,7 @@
      1. Header
      2. Columns (Sector / Administration / Region)
      3. Node rows
-     4. Members panel
+     4. Members panel (+ "Everyone" people panel)
      5. Name modal (create/rename, shared across all 3 levels)
      6. Loader
      7. Responsive
@@ -58,6 +58,8 @@
 }
 .orgchart-node:hover { border-color: var(--line-strong); }
 .orgchart-node.is-selected { background: var(--module-orgchart-soft); border-color: rgba(168, 136, 224, 0.4); }
+.orgchart-node__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.orgchart-node__sub { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .orgchart-node__name { font-size: 13.5px; color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .orgchart-node__count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
 .orgchart-node__actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -93,6 +95,18 @@
 }
 .orgchart-member-row__name { font-size: 13.5px; color: var(--text-primary); }
 .orgchart-member-row__role { font-size: 11px; color: var(--module-orgchart); font-family: var(--font-mono); margin-inline-start: 8px; }
+.orgchart-member-row__id { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-inline-start: 8px; }
+.orgchart-member-row__warn { font-size: 11px; color: var(--danger-text); margin-inline-start: 8px; }
+.orgchart-member-row.is-inactive .orgchart-member-row__name { opacity: 0.55; }
+
+/* "Everyone" panel — each person's position(s) in the organization */
+.orgchart-people__filter { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer; }
+.orgchart-people__positions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.orgchart-chip {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  color: var(--module-orgchart); background: var(--module-orgchart-soft); border: 1px solid rgba(168, 136, 224, 0.3);
+}
+.orgchart-chip--muted { color: var(--text-muted); background: transparent; border-color: var(--line-soft); }
 
 /* ---------------------------------------------------------------------
    5. NAME MODAL (create/rename)

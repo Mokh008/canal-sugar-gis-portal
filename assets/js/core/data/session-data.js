@@ -12,11 +12,7 @@ MKNexus.SessionData = {
     name: 'M. Farouk',
     role: 'Admin',
     initials: 'MF',
-    // Populated from the login response's own Users-sheet row ID (e.g.
-    // "USR009") — a Manager's own identity, matched against other rows'
-    // ManagerID column so a Manager sees only their own engineers
-    // (narrower than a Section Manger's whole-sector view). See
-    // core/data/team-directory.js.
+    // The logged-in user's own Users-sheet row ID (e.g. "USR009").
     id: '',
     // Set via modules/settings.js's Profile tab (avatar.gs's
     // handleUploadAvatar_) — empty until someone uploads a photo, in
@@ -31,13 +27,15 @@ MKNexus.SessionData = {
     // specific engineer — modules/rent.js and modules/expenses.js read
     // this instead of asking for a manually-typed ID when it's set.
     engineerId: '',
-    // Populated from the login response's Users.SectorID column (see
-    // backend/mk-nexus-core/auth.gs) — a Section Manger/Manager's own
-    // sector code, used by modules/rent.js and modules/expenses.js to
-    // scope their report views to "my sector" instead of everyone's via
-    // core/data/team-directory.js. Empty for roles with no sector
-    // concept (Admin) or before the backend redeploy that adds it.
-    sectorId: '',
+    // Org Chart placement, resolved server-side at login (see
+    // backend/mk-nexus-core/directory.gs's getLoginOrgInfo_) — NOT read
+    // from the Users sheet, which is descriptive only. `managesTeam` is
+    // true for anyone who is an administration manager / sector head in
+    // the Org Chart; it is what unlocks the Report tabs (Rent/Expenses)
+    // and the Attendance module (see core/access.js). `positions` is a
+    // list of { level, id, name, path } for display in Settings.
+    managesTeam: false,
+    positions: [],
   },
   notifications: [
     { title: 'Harvest sync completed — North Minya', time: '2m ago' },

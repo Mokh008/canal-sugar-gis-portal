@@ -18,12 +18,12 @@
  * aren't tied to a specific engineer (e.g. admins) — those modules fall
  * back to the manual field exactly as before when it's empty.
  *
- * NEW: optional SectorID column, same idea — a Section Manger/Manager's
- * own row carries the sector code they head, and every Engineer/
- * Manager/Supervisor under them carries that same code. Included in the
- * login response so the frontend can scope report views without a
- * second round trip. See directory.gs's handleGetTeamDirectory_ for the
- * roster this gets cross-referenced against.
+ * ORG PLACEMENT is deliberately NOT on the Users sheet: who manages which
+ * administration / is an engineer of which region lives in Org_Assignments
+ * (see org-structure.gs), and the login response carries the caller's
+ * resulting `managesTeam`/`positions` (see directory.gs). The Users sheet
+ * stays descriptive — the SectorID/ManagerID/OrgAdministrationID/
+ * OrgRegionID columns it used to carry are no longer read anywhere.
  *
  * SECURITY FIX (Critical): the live Users sheet was storing passwords
  * in PLAIN TEXT in the PasswordHash column and comparing them with a
@@ -81,6 +81,8 @@ function handleLogin_(context) {
   // plaintext in hand, and is a no-op for anyone already migrated.
   upgradePasswordIfNeeded_(user, password);
 
+  const orgInfo = getLoginOrgInfo_(user.ID);
+
   const safeUser = {
     // BUG FIX: this read `user.UserID` — a column that doesn't exist
     // anywhere in the real Users sheet (its ID column is literally
@@ -110,12 +112,15 @@ function handleLogin_(context) {
     // consistent value per role.
     role: normalizeRole_(user.Role),
     engineerId: user.EngineerID ? String(user.EngineerID).trim() : '',
-    // NEW: carries Users.SectorID onto the session, alongside engineerId
-    // above — lets Section Manger/Manager accounts scope the Rent/
-    // Expenses report views to their own sector client-side (see
-    // directory.gs's handleGetTeamDirectory_ and modules/rent.js /
-    // modules/expenses.js). Empty for roles with no sector concept.
-    sectorId: user.SectorID ? String(user.SectorID).trim() : '',
+    // Org Chart placement, NOT read from the Users sheet (which stays
+    // purely descriptive) — looked up from Org_Assignments (see
+    // directory.gs's getLoginOrgInfo_). `managesTeam` is what unlocks the
+    // Report tabs in Rent/Expenses and the Attendance module for someone
+    // who is an administration manager / sector head; `positions` is what
+    // the Settings profile shows. Replaces the old Users.SectorID field
+    // (`sectorId`) this response used to carry.
+    managesTeam: orgInfo.managesTeam,
+    positions: orgInfo.positions,
     // NEW: profile photo, set via avatar.gs's handleUploadAvatar_
     // (Settings module). Empty until someone uploads one — the frontend
     // falls back to the initials avatar it always showed before.

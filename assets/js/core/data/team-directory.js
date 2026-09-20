@@ -1,88 +1,87 @@
 window.MKNexus = window.MKNexus || {};
 
-/* MK NEXUS — Team Directory: "Layer 2" scoping for the Rent/Expenses
-   report views. Fetches the lightweight EngineerID/SectorID/ManagerID
-   roster from mk-nexus-core's getTeamDirectory action (see
-   backend/mk-nexus-core/directory.gs) and uses it to cross-reference a
-   Rent/Expenses report row's bare `engineerId` against the current
-   viewer — those two backends have no login/session concept of their
-   own (see their READMEs' "Still open" sections), so this is the only
-   place that identity check can happen today.
+/* MK NEXUS — Team Directory: "who is on my team", for the Rent/Expenses
+   report views and the Attendance dashboard.
 
-   Two scopes, narrowest wins:
-     - Manager: only the engineers whose ManagerID names this Manager's
-       own user ID (MKNexus.Access.currentUserId()).
-     - Section Manger: every row in this Section Manger's whole sector
-       (SectorID match) — broader, since a sector can contain several
-       Managers' teams.
-     - Admin: everyone, unfiltered (unchanged from before this feature).
+   The answer comes from the server (mk-nexus-core's getMyScope, see
+   backend/mk-nexus-core/directory.gs), which works it out from the Org
+   Chart for whoever is logged in — this file just fetches it once per
+   session and offers the matching helpers. Placement is NOT read from the
+   Users sheet (that stays descriptive only); it is set exclusively in the
+   Org Chart module:
+     - manager of an administration -> the engineers of that
+       administration's regions
+     - head of a sector             -> the engineers of every region of
+       every administration in that sector
+     - Admin                        -> everyone, unfiltered
+     - anyone else                  -> nobody
 
-   NOT a hard security boundary — see modules/rent.js/expenses.js's own
-   comments and both backends' READMEs. This hides rows outside the
-   viewer's scope in the client; the report endpoint itself still
-   returns every row to whoever calls it with the (client-visible)
-   adminKey, same as before this feature existed. */
+   Each team member carries what the consumers key on: `engineerId`
+   (Rent/Expenses report rows are keyed by it) and `name`/`attendanceName`
+   (Attendance fingerprint rows are keyed by name), plus the region /
+   administration / sector the person sits in.
+
+   NOT a hard security boundary — Rent/Expenses/Attendance are separate
+   deployments with no session concept of their own (see modules/rent.js,
+   modules/expenses.js and the backend READMEs). This decides what the
+   portal shows; the report endpoints themselves still return every row to
+   whoever calls them directly. */
 MKNexus.TeamDirectory = (function () {
   let loadPromise = null;
-  let bySector = null; // Map<sectorId, Set<engineerId>>
-  let byManager = null; // Map<managerId, Set<engineerId>>
+  let scope = null; // last getMyScope() response, or an empty fail-safe
 
-  function ensureLoaded() {
-    if (loadPromise) return loadPromise;
-    loadPromise = MKNexus.ApiClient.getTeamDirectory()
-      .then((rows) => {
-        bySector = new Map();
-        byManager = new Map();
-        (Array.isArray(rows) ? rows : []).forEach((row) => {
-          const sectorId = String(row?.sectorId || '').trim();
-          const managerId = String(row?.managerId || '').trim();
-          const engineerId = String(row?.engineerId || '').trim();
-          if (!engineerId) return;
-          if (sectorId) {
-            if (!bySector.has(sectorId)) bySector.set(sectorId, new Set());
-            bySector.get(sectorId).add(engineerId);
-          }
-          if (managerId) {
-            if (!byManager.has(managerId)) byManager.set(managerId, new Set());
-            byManager.get(managerId).add(engineerId);
-          }
-        });
+  function emptyScope() {
+    return { isAdmin: false, managesTeam: false, positions: [], team: [], unassigned: [] };
+  }
+
+  // Fetched once per session (login reloads the page state) — the Org
+  // Chart is edited rarely, and every module opening shouldn't refetch it.
+  // Pass { force: true } to refetch, e.g. after the user asks to refresh.
+  function ensureLoaded({ force = false } = {}) {
+    if (loadPromise && !force) return loadPromise;
+    loadPromise = MKNexus.ApiClient.getMyScope()
+      .then((data) => {
+        scope = {
+          ...emptyScope(),
+          ...(data || {}),
+          team: Array.isArray(data?.team) ? data.team : [],
+          unassigned: Array.isArray(data?.unassigned) ? data.unassigned : [],
+        };
       })
       .catch((error) => {
-        // Fails safe: an empty directory means filterToMyScope() below
-        // shows nothing rather than falling back to "show everyone" —
-        // a broken/unreachable directory should never widen access.
-        bySector = new Map();
-        byManager = new Map();
-        console.warn('[MK Nexus] Team directory unavailable — scoped reports will show no rows until this succeeds.', error);
+        // Fails safe: an unreachable scope means non-admins see no rows
+        // rather than falling back to "show everyone" — a broken lookup
+        // should never widen access. Drop the cached promise so the next
+        // module open retries instead of staying broken for the session.
+        scope = emptyScope();
+        loadPromise = null;
+        console.warn('[MK Nexus] Team scope unavailable — scoped views will show no rows until this succeeds.', error);
       });
     return loadPromise;
   }
 
-  function mySectorEngineerIds() {
-    const sectorId = MKNexus.Access.currentSectorId();
-    if (!sectorId || !bySector) return new Set();
-    return bySector.get(sectorId) || new Set();
+  function getScope() {
+    return scope || emptyScope();
   }
 
-  function myManagedEngineerIds() {
-    const userId = MKNexus.Access.currentUserId();
-    if (!userId || !byManager) return new Set();
-    return byManager.get(userId) || new Set();
+  function trimmed(value) {
+    return String(value ?? '').trim();
   }
 
-  // Admins see every row unfiltered (same as before this feature
-  // existed). Manager gets the narrowest scope (their own engineers
-  // only, via ManagerID). Everyone else who reaches a report view at
-  // all — practically just Section Manger — gets the whole-sector scope.
-  // Call ensureLoaded() first for non-admins so the maps are populated.
+  // engineerIds of everyone on the caller's team — what Rent/Expenses
+  // report rows are matched against.
+  function myEngineerIds() {
+    return new Set(getScope().team.map((m) => trimmed(m.engineerId)).filter(Boolean));
+  }
+
+  // Admins see every row unfiltered. Everyone else sees only rows whose
+  // `engineerId` belongs to their team. Call ensureLoaded() first for
+  // non-admins so the team is populated.
   function filterToMyScope(rows) {
     if (MKNexus.Access.isAdmin()) return rows;
-    const allowed = MKNexus.Access.currentRole() === MKNexus.Access.ROLES.MANAGER
-      ? myManagedEngineerIds()
-      : mySectorEngineerIds();
-    return (Array.isArray(rows) ? rows : []).filter((row) => allowed.has(String(row?.engineerId || '').trim()));
+    const allowed = myEngineerIds();
+    return (Array.isArray(rows) ? rows : []).filter((row) => allowed.has(trimmed(row?.engineerId)));
   }
 
-  return { ensureLoaded, mySectorEngineerIds, myManagedEngineerIds, filterToMyScope };
+  return { ensureLoaded, getScope, myEngineerIds, filterToMyScope };
 })();

@@ -59,20 +59,19 @@ function getRouteTable_() {
     [CONFIG.ACTIONS.GET_AUDIT_LOG]: { fn: handleGetAuditLog_, roles: [CONFIG.ROLES.ADMIN] },
     [CONFIG.ACTIONS.GET_KPI_AGGREGATE]: { fn: handleGetKPIAggregate_, roles: [CONFIG.ROLES.ADMIN] },
 
-    // New — see directory.gs. Lightweight, non-sensitive roster (no
-    // email/username/password) so the Rent/Expenses frontend modules can
-    // scope their admin-report views to "my sector" for Section
-    // Manger/Manager instead of only ever showing everyone (Admin) or
-    // nobody. Minimum role MANAGER means Manager, Section Manger, and
-    // Admin can all call it (ROLE_HIERARCHY ranks Section Manger/Admin
-    // above Manager) — Engineer/Supervisor cannot.
-    [CONFIG.ACTIONS.GET_TEAM_DIRECTORY]: { fn: handleGetTeamDirectory_, roles: [CONFIG.ROLES.MANAGER] },
+    // New — see directory.gs. "Who is on my team", worked out server-side
+    // from the Org Chart for whoever is calling. Open to every
+    // authenticated account (SUPERVISOR = lowest rank): what you get back
+    // is decided by the position you hold in the Org Chart, not by your
+    // Users.Role — an Engineer with no position just gets an empty team.
+    [CONFIG.ACTIONS.GET_MY_SCOPE]: { fn: handleGetMyScope_, roles: [CONFIG.ROLES.SUPERVISOR] },
 
-    // New — see org-structure.gs. Same Manager+ read gate as
-    // GET_TEAM_DIRECTORY: the frontend needs the full Sector/
-    // Administration/Region tree to resolve a Manager's or Section
-    // Manger's report scope, not just Admins running the Org Chart tool.
-    [CONFIG.ACTIONS.GET_ORG_STRUCTURE]: { fn: handleGetOrgStructure_, roles: [CONFIG.ROLES.MANAGER] },
+    // New — see org-structure.gs. The raw tree + placements are Admin-only
+    // now (this used to be Manager+ so the frontend could resolve scope
+    // itself); everyone else gets an already-filtered view via getMyScope.
+    [CONFIG.ACTIONS.GET_ORG_STRUCTURE]: { fn: handleGetOrgStructure_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.ASSIGN_ORG_MEMBER]: { fn: handleAssignOrgMember_, roles: [CONFIG.ROLES.ADMIN] },
+    [CONFIG.ACTIONS.UNASSIGN_ORG_MEMBER]: { fn: handleUnassignOrgMember_, roles: [CONFIG.ROLES.ADMIN] },
 
     // Writes — ADMIN only (see ROLE MODEL UPDATE above)
     [CONFIG.ACTIONS.CREATE_GOVERNORATE]: { fn: handleCreateGovernorate_, roles: [CONFIG.ROLES.ADMIN] },

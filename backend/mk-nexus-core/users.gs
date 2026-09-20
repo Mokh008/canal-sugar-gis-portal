@@ -25,7 +25,7 @@
  *     setUserActiveState_ all read/wrote a column called `Active`, but
  *     directory.gs's report-scoping (and everything downstream of it —
  *     Rent/Expenses admin views) filters on a column called `IsActive`
- *     (see directory.gs's handleGetTeamDirectory_). Two different
+ *     (see directory.gs's handleGetMyScope_). Two different
  *     columns: activating/deactivating a user here never touched the
  *     one column the rest of the system actually reads, so the
  *     Activate/Deactivate actions were silently no-ops from the
@@ -35,14 +35,28 @@
  *     the literal string "FALSE" counts as inactive).
  * ============================================================
  *
- * Sheet columns: ID | Name | Username | Email | PasswordHash | Salt |
- *                Role | IsActive | LastLogin | CreatedAt | UpdatedAt
- *                (plus SectorID | ManagerID | EngineerID | GovernorateID |
- *                AdministrationID | DistrictID — see directory.gs/auth.gs/
- *                settings.js; not touched by this file's field list,
- *                but pass straight through handleUpdateUser_'s generic
- *                payload since it isn't stripped like password/Role are)
+ * Sheet columns: ID | Name (or FullName) | Username | Email | PasswordHash |
+ *                Salt | Role | IsActive | LastLogin | CreatedAt | UpdatedAt
+ *                (plus the descriptive EngineerID | AttendanceName, and the
+ *                geo-scoping GovernorateID | AdministrationID | DistrictID
+ *                which belong to Geo Intelligence and are left alone; they
+ *                pass straight through handleUpdateUser_'s generic payload
+ *                since they aren't stripped like password/Role are)
+ *
+ * THE USERS SHEET IS DESCRIPTIVE ONLY. Org placement (who manages which
+ * administration, who is an engineer of which region) is NOT stored here —
+ * it lives in Org_Assignments, edited from the Org Chart tool (see
+ * org-structure.gs). LEGACY_ORG_PLACEMENT_FIELDS_ below are stripped from
+ * every create/update payload so an old client or stale form can't quietly
+ * write them back into the sheet.
  */
+
+/**
+ * Columns the previous Org Chart implementation wrote onto Users rows.
+ * Placement now lives in Org_Assignments; these are never written again
+ * (run runOneTimeOrgMigration_() once, then delete these columns).
+ */
+const LEGACY_ORG_PLACEMENT_FIELDS_ = ['SectorID', 'ManagerID', 'OrgAdministrationID', 'OrgRegionID'];
 
 /**
  * Strips password/salt fields before returning a user to the client.
@@ -51,12 +65,29 @@
  */
 function toSafeUser_(row) {
   if (!row) return null;
+  const fullName = row.FullName || row.Name;
   return {
     ID: row.ID,
-    Name: row.Name,
+    // Both spellings, whichever the sheet actually has filled in: the
+    // Settings/Org Chart modules read `FullName` (as login does), the
+    // create path writes `Name`. Before, only `Name` came back, so those
+    // modules showed every name as blank.
+    Name: fullName,
+    FullName: fullName,
     Username: row.Username,
     Email: row.Email,
     Role: row.Role,
+    // Descriptive identity fields the Org Chart / Settings screens show
+    // (never placement — that lives in Org_Assignments, org-structure.gs).
+    EngineerID: row.EngineerID,
+    AttendanceName: row.AttendanceName,
+    // Geo Intelligence's own per-user fields — untouched by the Org Chart,
+    // returned here only so the Settings edit form can round-trip them.
+    // Without this the form loaded them blank and, on save, wrote those
+    // blanks back over the real values.
+    GovernorateID: row.GovernorateID,
+    AdministrationID: row.AdministrationID,
+    DistrictID: row.DistrictID,
     IsActive: row.IsActive,
     LastLogin: row.LastLogin || null,
     CreatedAt: row.CreatedAt,
@@ -77,17 +108,17 @@ function handleGetUsers_(context) {
  * Route handler: CREATE_USER. Generates a salt, hashes the supplied
  * password, and stores the account. Defaults to IsActive=true.
  *
- * ALSO FIXED — the org/geo placement fields (SectorID/ManagerID/
- * EngineerID/GovernorateID/AdministrationID/DistrictID) that
- * settings.js's "add user" form sends were built into `row` below via
- * an `extra` passthrough; before this they were silently dropped
- * (the original `row` literal only ever listed the core account
- * fields), so a brand-new user always came out with no sector/manager
- * assignment no matter what the form's org-placement fields said —
- * you'd have to immediately follow up with a separate updateUser call
- * to actually set them. Mirrors handleUpdateUser_'s existing
- * passthrough, minus the fields that are either handled explicitly
- * above or must never come from client input.
+ * ALSO FIXED — the descriptive/geo fields (EngineerID/AttendanceName/
+ * GovernorateID/AdministrationID/DistrictID) that settings.js's "add
+ * user" form sends are built into `row` below via an `extra`
+ * passthrough; before this they were silently dropped (the original
+ * `row` literal only ever listed the core account fields), so you'd have
+ * to immediately follow up with a separate updateUser call to set them.
+ * Mirrors handleUpdateUser_'s existing passthrough, minus the fields that
+ * are either handled explicitly above or must never come from client
+ * input — including the legacy Org placement columns
+ * (LEGACY_ORG_PLACEMENT_FIELDS_): where someone sits in the org is set
+ * from the Org Chart, never here.
  */
 function handleCreateUser_(context) {
   const payload = validateCreatePayload_(CONFIG.ENTITY_TYPES.USER, context.body);
@@ -127,6 +158,7 @@ function handleCreateUser_(context) {
   const extra = sanitizeObject_(context.body);
   ['password', 'Name', 'Username', 'Email', 'Role', 'PasswordHash', 'Salt',
     'ID', 'IsActive', 'LastLogin', 'CreatedAt', 'UpdatedAt'].forEach(k => delete extra[k]);
+  LEGACY_ORG_PLACEMENT_FIELDS_.forEach(k => delete extra[k]);
   Object.assign(row, extra);
 
   appendRowFromObject_(CONFIG.SHEETS.USERS, row);
@@ -139,10 +171,11 @@ function handleCreateUser_(context) {
  * Route handler: UPDATE_USER. Updates profile fields only —
  * never password or role (those go through dedicated endpoints
  * so they get their own explicit audit trail entries). Everything
- * else in the payload (including SectorID/ManagerID/EngineerID/
+ * else in the payload (including EngineerID/AttendanceName/
  * GovernorateID/AdministrationID/DistrictID) passes straight through
- * to updateRowById_ so the org-placement fields the Settings UI edits
- * actually get written.
+ * to updateRowById_ so the fields the Settings UI edits actually get
+ * written. Org placement is deliberately NOT one of them — see
+ * LEGACY_ORG_PLACEMENT_FIELDS_ above.
  */
 function handleUpdateUser_(context) {
   const id = context.params.id || context.body.id;
@@ -155,6 +188,7 @@ function handleUpdateUser_(context) {
   delete payload.PasswordHash;
   delete payload.Salt;
   delete payload.ID;
+  LEGACY_ORG_PLACEMENT_FIELDS_.forEach(k => delete payload[k]);
 
   const existingRows = readSheetAsObjects_(CONFIG.SHEETS.USERS);
   const oldValue = existingRows.find(r => String(r.ID) === String(id));
@@ -183,6 +217,9 @@ function handleDeleteUser_(context) {
 
   deleteRowById_(CONFIG.SHEETS.USERS, 'ID', id);
   auditDelete_(context.user.username, CONFIG.ENTITY_TYPES.USER, id, toSafeUser_(oldValue));
+  // Don't leave a deleted account still counted as some administration's
+  // manager / some region's engineer.
+  removeOrgAssignmentsForUser_(id, context.user.username);
 
   return { deleted: true, id: id };
 }

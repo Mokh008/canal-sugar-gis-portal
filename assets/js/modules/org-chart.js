@@ -1,39 +1,39 @@
 window.MKNexus = window.MKNexus || {};
 
-/* MK NEXUS — Org Chart module (Admin only). Lets an Admin build the
-   organizational reporting hierarchy — Sector -> Administration ->
-   Region — and place users into it, entirely from the website. Talks
-   to the mk-nexus-core backend (assets/js/api/config.js's baseUrl) via
-   getOrgStructure/create|update|deleteOrgSector/Administration/Region
-   (see backend/mk-nexus-core/org-structure.gs) plus the existing
-   getUsers/updateUser actions (users.gs) to assign/unassign people.
+/* MK NEXUS — Org Chart module (Admin only). THE place where the
+   organization is laid out: which regions sit under which administration,
+   who manages each administration, and which engineers work each region.
+   Everything Expenses / Rent / Attendance show a manager (their team's
+   data only) is derived from what is set here — see
+   core/data/team-directory.js.
+
+   The Users sheet is descriptive only (name, username, role, EngineerID...);
+   it holds NO placement. Placement lives in the backend's Org_Assignments
+   sheet, written exclusively through assignOrgMember/unassignOrgMember (see
+   backend/mk-nexus-core/org-structure.gs), alongside the Sector/
+   Administration/Region CRUD (create|update|deleteOrgSector/...) and the
+   existing getUsers (the people to place).
 
    THREE-COLUMN "MILLER COLUMNS" UI: pick a Sector -> its Administrations
    appear in column 2 -> pick one -> its Regions appear in column 3. The
-   Members panel below shows whoever is currently placed at the deepest
-   selected level, with a dropdown to assign someone new:
-     - Sector selected only:        Section Manger(s) whose SectorID = this Sector
-     - + Administration selected:   Manager(s) whose OrgAdministrationID = this Administration
-     - + Region selected:           Engineer/Supervisor(s) whose OrgRegionID = this Region
+   Members panel below shows whoever sits at the deepest selected level,
+   with a dropdown to place someone new:
+     - Sector selected only:        the sector head(s)
+     - + Administration selected:   the administration's manager(s)
+     - + Region selected:           the region's engineers
+   Anyone can be picked at any level — a person's Users.Role is just their
+   job title; an "Engineer" can perfectly well be an administration's
+   manager. A person is the engineer of ONE region at a time, so placing
+   them in a region moves them out of their previous one.
 
-   ASSIGNING ALSO STAMPS THE LEGACY SectorID/ManagerID FIELDS so the
-   existing 2-tier report scoping (core/data/team-directory.js — Rent/
-   Expenses admin views) keeps working correctly for anyone placed via
-   this tool, without waiting on that file's own migration to the full
-   3-tier tree:
-     - Assign to a Region  -> also sets SectorID (via Region's
-       Administration's SectorID) and, if exactly one Manager currently
-       heads that Administration, ManagerID too (ambiguous otherwise —
-       left untouched rather than guessing).
-     - Assign to an Administration -> also sets SectorID.
-   Unassigning clears the field the user was removed from AND every
-   legacy field that was auto-stamped alongside it, so nobody is left
-   pointing at a scope they're no longer actually part of. */
+   The "Everyone" panel at the bottom answers "what is this person's job
+   in the org?" for every active user, and flags anyone not placed yet. */
 MKNexus.OrgChartModule = (function () {
   let containerEl = null;
   let loaderEl, loaderTextEl;
   let sectorsListEl, adminsListEl, regionsListEl, adminsAddBtn, regionsAddBtn;
   let membersHeadEl, membersListEl, assignSelectEl, assignBtn;
+  let peopleListEl, unplacedOnlyEl;
   let nameModalEl, nameModalTitleEl, nameInputEl, nameModalSaveBtn, nameModalCancelBtn;
 
   const escapeHtml = MKNexus.Utils.escapeHtml;
@@ -42,7 +42,7 @@ MKNexus.OrgChartModule = (function () {
   function showLoader(text) { MKNexus.Utils.showLoader(loaderEl, loaderTextEl, text); }
   function hideLoader() { MKNexus.Utils.hideLoader(loaderEl); }
 
-  let sectors = [], administrations = [], regions = [], allUsers = [];
+  let sectors = [], administrations = [], regions = [], assignments = [], allUsers = [];
   let selectedSectorId = null, selectedAdministrationId = null, selectedRegionId = null;
 
   // Pending name-modal action: { mode: 'create'|'rename', level, id }
@@ -57,7 +57,7 @@ MKNexus.OrgChartModule = (function () {
         <div class="orgchart-module__header">
           <span class="type-eyebrow orgchart-module__eyebrow">ORG CHART</span>
           <h1 class="orgchart-module__title">Organization Structure</h1>
-          <p class="orgchart-module__subtitle">Sector → Administration → Region — who reports to whom, and who sees whose reports</p>
+          <p class="orgchart-module__subtitle">Sector → Administration → Region — place the managers and engineers here; Expenses, Rent and Attendance reports follow it</p>
         </div>
 
         <div class="orgchart-columns">
@@ -98,6 +98,17 @@ MKNexus.OrgChartModule = (function () {
           <div class="orgchart-member-list" id="orgMembersList"></div>
         </div>
 
+        <div class="orgchart-members orgchart-people">
+          <div class="orgchart-members__head">
+            <div>
+              <div class="orgchart-members__title">Everyone</div>
+              <div class="orgchart-members__breadcrumb">Each person's position in the organization</div>
+            </div>
+            <label class="orgchart-people__filter"><input type="checkbox" id="orgUnplacedOnly"><span>Not placed yet only</span></label>
+          </div>
+          <div class="orgchart-member-list" id="orgPeopleList"></div>
+        </div>
+
         <div class="orgchart-modal" id="orgNameModal">
           <div class="orgchart-modal__panel">
             <div class="orgchart-modal__title" id="orgNameModalTitle">Add</div>
@@ -120,7 +131,7 @@ MKNexus.OrgChartModule = (function () {
   }
 
   /* -------------------------------------------------------------------
-     Data loading
+     Data loading + lookups
   ------------------------------------------------------------------- */
   function normalizeListResponse(data, key) {
     if (Array.isArray(data)) return data;
@@ -135,6 +146,7 @@ MKNexus.OrgChartModule = (function () {
         sectors = Array.isArray(structure?.sectors) ? structure.sectors : [];
         administrations = Array.isArray(structure?.administrations) ? structure.administrations : [];
         regions = Array.isArray(structure?.regions) ? structure.regions : [];
+        assignments = Array.isArray(structure?.assignments) ? structure.assignments : [];
         allUsers = normalizeListResponse(usersData, 'users');
         hideLoader();
         renderAll();
@@ -145,13 +157,53 @@ MKNexus.OrgChartModule = (function () {
       });
   }
 
+  function isActiveUser(u) { return String(u?.IsActive ?? 'TRUE').toUpperCase() !== 'FALSE'; }
+  function userName(u) { return u?.FullName || u?.Name || u?.Username || ''; }
+  function byName(a, b) { return userName(a).localeCompare(userName(b)); }
+  function findUser(id) { return allUsers.find((u) => String(u.ID) === String(id)); }
+  function sectorOf(id) { return sectors.find((s) => String(s.ID) === String(id)); }
+  function administrationOf(id) { return administrations.find((a) => String(a.ID) === String(id)); }
+  function regionOf(id) { return regions.find((r) => String(r.ID) === String(id)); }
+
+  // Everyone placed at one node, as user rows (dangling assignments —
+  // a user that no longer exists — are skipped).
+  function membersAt(level, nodeId) {
+    return assignments
+      .filter((a) => a.Level === level && String(a.NodeID) === String(nodeId))
+      .map((a) => findUser(a.UserID))
+      .filter(Boolean)
+      .sort(byName);
+  }
+
+  // Human-readable list of every position a person holds, e.g.
+  // "Administration manager — Canal › Minya". Empty array = not placed.
+  function positionLabels(userId) {
+    return assignments.filter((a) => String(a.UserID) === String(userId)).map((a) => {
+      if (a.Level === 'sector') {
+        return `Sector head — ${sectorOf(a.NodeID)?.Name || '?'}`;
+      }
+      if (a.Level === 'administration') {
+        const admin = administrationOf(a.NodeID);
+        return `Administration manager — ${[sectorOf(admin?.SectorID)?.Name, admin?.Name].filter(Boolean).join(' › ') || '?'}`;
+      }
+      const region = regionOf(a.NodeID);
+      const admin = administrationOf(region?.AdministrationID);
+      return `Region engineer — ${[admin?.Name, region?.Name].filter(Boolean).join(' › ') || '?'}`;
+    });
+  }
+
+  function names(list) { return list.map(userName).join('، '); }
+
   /* -------------------------------------------------------------------
      Rendering — columns
   ------------------------------------------------------------------- */
-  function nodeRowHtml(id, name, count, isSelected) {
+  function nodeRowHtml(id, name, count, isSelected, sub) {
     return `
       <div class="orgchart-node ${isSelected ? 'is-selected' : ''}" data-id="${escapeHtml(id)}">
-        <span class="orgchart-node__name">${escapeHtml(name) || '—'}</span>
+        <span class="orgchart-node__text">
+          <span class="orgchart-node__name">${escapeHtml(name) || '—'}</span>
+          ${sub ? `<span class="orgchart-node__sub">${escapeHtml(sub)}</span>` : ''}
+        </span>
         <span class="orgchart-node__count">${count}</span>
         <div class="orgchart-node__actions">
           <button class="orgchart-icon-btn" type="button" data-action="rename" title="Rename"><i class="fa-solid fa-pen"></i></button>
@@ -167,7 +219,8 @@ MKNexus.OrgChartModule = (function () {
     }
     sectorsListEl.innerHTML = sectors.map((s) => {
       const count = administrations.filter((a) => String(a.SectorID) === String(s.ID)).length;
-      return nodeRowHtml(s.ID, s.Name, count, String(s.ID) === String(selectedSectorId));
+      const heads = membersAt('sector', s.ID);
+      return nodeRowHtml(s.ID, s.Name, count, String(s.ID) === String(selectedSectorId), heads.length ? `Head: ${names(heads)}` : 'No head assigned');
     }).join('');
   }
 
@@ -184,7 +237,8 @@ MKNexus.OrgChartModule = (function () {
     }
     adminsListEl.innerHTML = rows.map((a) => {
       const count = regions.filter((r) => String(r.AdministrationID) === String(a.ID)).length;
-      return nodeRowHtml(a.ID, a.Name, count, String(a.ID) === String(selectedAdministrationId));
+      const managers = membersAt('administration', a.ID);
+      return nodeRowHtml(a.ID, a.Name, count, String(a.ID) === String(selectedAdministrationId), managers.length ? `Manager: ${names(managers)}` : 'No manager assigned');
     }).join('');
   }
 
@@ -200,24 +254,30 @@ MKNexus.OrgChartModule = (function () {
       return;
     }
     regionsListEl.innerHTML = rows.map((r) => {
-      const memberCount = allUsers.filter((u) => String(u.OrgRegionID) === String(r.ID)).length;
-      return nodeRowHtml(r.ID, r.Name, memberCount, String(r.ID) === String(selectedRegionId));
+      const engineers = membersAt('region', r.ID);
+      return nodeRowHtml(r.ID, r.Name, engineers.length, String(r.ID) === String(selectedRegionId), engineers.length ? '' : 'No engineers assigned');
     }).join('');
   }
 
   /* -------------------------------------------------------------------
      Rendering — members panel
   ------------------------------------------------------------------- */
-  function isActiveUser(u) { return String(u?.IsActive ?? 'TRUE').toUpperCase() !== 'FALSE'; }
-
-  function memberRowHtml(u, onRemove) {
+  function memberRowHtml(u, level) {
+    // At region level, a missing EngineerID means this person's Rent/
+    // Expenses rows can never be matched to them, so flag it right here.
+    const engineerNote = level === 'region'
+      ? (u.EngineerID
+        ? `<span class="orgchart-member-row__id">#${escapeHtml(u.EngineerID)}</span>`
+        : '<span class="orgchart-member-row__warn" title="Rent and Expenses reports match people by Engineer ID"><i class="fa-solid fa-triangle-exclamation"></i> no Engineer ID</span>')
+      : '';
     return `
-      <div class="orgchart-member-row" data-user-id="${escapeHtml(u.ID || '')}">
+      <div class="orgchart-member-row ${isActiveUser(u) ? '' : 'is-inactive'}" data-user-id="${escapeHtml(u.ID || '')}">
         <span>
-          <span class="orgchart-member-row__name">${escapeHtml(u.FullName || u.Name) || '—'}</span>
-          <span class="orgchart-member-row__role">${escapeHtml(u.Role) || ''}</span>
+          <span class="orgchart-member-row__name">${escapeHtml(userName(u)) || '—'}</span>
+          <span class="orgchart-member-row__role">${escapeHtml(u.Role) || ''}${isActiveUser(u) ? '' : ' · inactive'}</span>
+          ${engineerNote}
         </span>
-        <button class="orgchart-icon-btn orgchart-icon-btn--danger" type="button" data-action="${onRemove}" title="Remove"><i class="fa-solid fa-user-minus"></i></button>
+        <button class="orgchart-icon-btn orgchart-icon-btn--danger" type="button" data-action="remove" title="Remove"><i class="fa-solid fa-user-minus"></i></button>
       </div>`;
   }
 
@@ -226,6 +286,10 @@ MKNexus.OrgChartModule = (function () {
     if (selectedAdministrationId) return 'administration';
     if (selectedSectorId) return 'sector';
     return null;
+  }
+
+  function currentNodeId() {
+    return selectedRegionId || selectedAdministrationId || selectedSectorId;
   }
 
   function renderMembers() {
@@ -240,42 +304,71 @@ MKNexus.OrgChartModule = (function () {
       return;
     }
 
-    let members, candidates, breadcrumb, title;
+    let title, breadcrumb;
     if (level === 'sector') {
-      const sector = sectors.find((s) => String(s.ID) === String(selectedSectorId));
+      const sector = sectorOf(selectedSectorId);
       title = `Sector head: ${sector?.Name || ''}`;
       breadcrumb = sector?.Name || '';
-      members = allUsers.filter((u) => String(u.SectorID) === String(selectedSectorId) && u.Role === 'Section Manger');
-      candidates = allUsers.filter((u) => isActiveUser(u) && u.Role === 'Section Manger' && String(u.SectorID) !== String(selectedSectorId));
     } else if (level === 'administration') {
-      const admin = administrations.find((a) => String(a.ID) === String(selectedAdministrationId));
-      const sector = sectors.find((s) => String(s.ID) === String(admin?.SectorID));
-      title = `Administration managers: ${admin?.Name || ''}`;
-      breadcrumb = `${sector?.Name || ''} → ${admin?.Name || ''}`;
-      members = allUsers.filter((u) => String(u.OrgAdministrationID) === String(selectedAdministrationId));
-      candidates = allUsers.filter((u) => isActiveUser(u) && u.Role === 'Manager' && String(u.OrgAdministrationID) !== String(selectedAdministrationId));
+      const admin = administrationOf(selectedAdministrationId);
+      title = `Administration manager: ${admin?.Name || ''}`;
+      breadcrumb = `${sectorOf(admin?.SectorID)?.Name || ''} → ${admin?.Name || ''}`;
     } else {
-      const region = regions.find((r) => String(r.ID) === String(selectedRegionId));
-      const admin = administrations.find((a) => String(a.ID) === String(region?.AdministrationID));
-      const sector = sectors.find((s) => String(s.ID) === String(admin?.SectorID));
-      title = `Region members: ${region?.Name || ''}`;
-      breadcrumb = `${sector?.Name || ''} → ${admin?.Name || ''} → ${region?.Name || ''}`;
-      members = allUsers.filter((u) => String(u.OrgRegionID) === String(selectedRegionId));
-      candidates = allUsers.filter((u) => isActiveUser(u) && ['Engineer', 'Supervisor'].includes(u.Role) && String(u.OrgRegionID) !== String(selectedRegionId));
+      const region = regionOf(selectedRegionId);
+      const admin = administrationOf(region?.AdministrationID);
+      title = `Region engineers: ${region?.Name || ''}`;
+      breadcrumb = `${sectorOf(admin?.SectorID)?.Name || ''} → ${admin?.Name || ''} → ${region?.Name || ''}`;
     }
+
+    const members = membersAt(level, currentNodeId());
+    const memberIds = new Set(members.map((u) => String(u.ID)));
+    // Anyone active who isn't already here — the role is deliberately NOT
+    // a filter (an Engineer can manage an administration). At region level
+    // the option says where they'd be moved from.
+    const candidates = allUsers.filter((u) => isActiveUser(u) && !memberIds.has(String(u.ID))).sort(byName);
 
     membersHeadEl.textContent = title;
     document.getElementById('orgMembersBreadcrumb').textContent = breadcrumb;
 
     membersListEl.innerHTML = members.length
-      ? members.map((u) => memberRowHtml(u, 'remove')).join('')
-      : '<div class="orgchart-column__empty">No members yet</div>';
+      ? members.map((u) => memberRowHtml(u, level)).join('')
+      : '<div class="orgchart-column__empty">No one placed here yet</div>';
 
     assignRow.hidden = false;
     assignSelectEl.innerHTML = candidates.length
-      ? candidates.map((u) => `<option value="${escapeHtml(u.ID)}">${escapeHtml(u.FullName || u.Name)} (${escapeHtml(u.Role)})</option>`).join('')
+      ? candidates.map((u) => {
+        const current = level === 'region'
+          ? assignments.find((a) => String(a.UserID) === String(u.ID) && a.Level === 'region')
+          : null;
+        const moveNote = current ? ` — now in ${regionOf(current.NodeID)?.Name || 'another region'}` : '';
+        return `<option value="${escapeHtml(u.ID)}">${escapeHtml(userName(u))} (${escapeHtml(u.Role)})${escapeHtml(moveNote)}</option>`;
+      }).join('')
       : '<option value="">No candidates available</option>';
     assignBtn.disabled = !candidates.length;
+  }
+
+  function renderPeople() {
+    const unplacedOnly = unplacedOnlyEl.checked;
+    const rows = allUsers
+      .filter(isActiveUser)
+      .map((u) => ({ user: u, labels: positionLabels(u.ID) }))
+      .filter((row) => !unplacedOnly || !row.labels.length)
+      .sort((a, b) => byName(a.user, b.user));
+
+    peopleListEl.innerHTML = rows.length
+      ? rows.map(({ user, labels }) => `
+        <div class="orgchart-member-row">
+          <span>
+            <span class="orgchart-member-row__name">${escapeHtml(userName(user)) || '—'}</span>
+            <span class="orgchart-member-row__role">${escapeHtml(user.Role) || ''}</span>
+          </span>
+          <span class="orgchart-people__positions">
+            ${labels.length
+    ? labels.map((label) => `<span class="orgchart-chip">${escapeHtml(label)}</span>`).join('')
+    : '<span class="orgchart-chip orgchart-chip--muted">Not placed</span>'}
+          </span>
+        </div>`).join('')
+      : `<div class="orgchart-column__empty">${unplacedOnly ? 'Everyone is placed' : 'No users found'}</div>`;
   }
 
   function renderAll() {
@@ -283,61 +376,31 @@ MKNexus.OrgChartModule = (function () {
     renderAdministrations();
     renderRegions();
     renderMembers();
+    renderPeople();
     if (typeof gsap !== 'undefined' && !prefersReducedMotion()) animateIn(containerEl.querySelector('.orgchart-columns'));
   }
 
   /* -------------------------------------------------------------------
-     Assign / remove
+     Assign / remove — straight calls to the placement endpoints; the
+     server owns the rules (e.g. moving someone out of a previous region).
   ------------------------------------------------------------------- */
-  // Finds the single Manager currently heading an Administration, if
-  // exactly one exists — used to also stamp the legacy ManagerID field
-  // when placing an Engineer/Supervisor into one of that Administration's
-  // Regions (see file header). Ambiguous (0 or 2+ managers) -> null,
-  // left untouched rather than guessing wrong.
-  function soleManagerIdForAdministration(administrationId) {
-    const managers = allUsers.filter((u) => String(u.OrgAdministrationID) === String(administrationId) && u.Role === 'Manager');
-    return managers.length === 1 ? managers[0].ID : null;
-  }
-
   function assignMember() {
     const userId = assignSelectEl.value;
-    if (!userId) return;
     const level = currentLevel();
-    let updates;
-
-    if (level === 'sector') {
-      updates = { SectorID: selectedSectorId };
-    } else if (level === 'administration') {
-      const admin = administrations.find((a) => String(a.ID) === String(selectedAdministrationId));
-      updates = { OrgAdministrationID: selectedAdministrationId, SectorID: admin?.SectorID || '' };
-    } else {
-      const region = regions.find((r) => String(r.ID) === String(selectedRegionId));
-      const admin = administrations.find((a) => String(a.ID) === String(region?.AdministrationID));
-      updates = { OrgRegionID: selectedRegionId, SectorID: admin?.SectorID || '' };
-      const managerId = soleManagerIdForAdministration(region?.AdministrationID);
-      if (managerId) updates.ManagerID = managerId;
-    }
+    if (!userId || !level) return;
 
     showLoader('Adding...');
-    MKNexus.ApiClient.updateUser({ id: userId, ...updates })
+    MKNexus.ApiClient.assignOrgMember({ userId, level, nodeId: currentNodeId() })
       .then(() => { hideLoader(); MKNexus.Toast.success('Added'); return loadAll(); })
       .catch((error) => { hideLoader(); MKNexus.Toast.error(error?.message || 'Failed to add'); });
   }
 
   function removeMember(userId) {
     const level = currentLevel();
-    // Clears the field the user was placed in AND every legacy field
-    // auto-stamped alongside it on assignment (see file header) — a
-    // removed member should end up scoped nowhere, not stuck with a
-    // stale SectorID/ManagerID pointing at a team they just left.
-    const updates = level === 'sector'
-      ? { SectorID: '' }
-      : level === 'administration'
-        ? { OrgAdministrationID: '', SectorID: '' }
-        : { OrgRegionID: '', SectorID: '', ManagerID: '' };
+    if (!level) return;
 
     showLoader('Removing...');
-    MKNexus.ApiClient.updateUser({ id: userId, ...updates })
+    MKNexus.ApiClient.unassignOrgMember({ userId, level, nodeId: currentNodeId() })
       .then(() => { hideLoader(); MKNexus.Toast.success('Removed'); return loadAll(); })
       .catch((error) => { hideLoader(); MKNexus.Toast.error(error?.message || 'Failed to remove'); });
   }
@@ -351,14 +414,14 @@ MKNexus.OrgChartModule = (function () {
       update: (id, name) => MKNexus.ApiClient.updateOrgSector({ id, Name: name }),
       remove: (id) => MKNexus.ApiClient.deleteOrgSector({ id }),
       createTitle: 'Add sector', renameTitle: 'Rename sector',
-      confirmDelete: (name) => `Delete sector "${name}"?`,
+      confirmDelete: (name) => `Delete sector "${name}"? Its head assignment is removed too.`,
     },
     administration: {
       create: (name) => MKNexus.ApiClient.createOrgAdministration({ Name: name, SectorID: selectedSectorId }),
       update: (id, name) => MKNexus.ApiClient.updateOrgAdministration({ id, Name: name }),
       remove: (id) => MKNexus.ApiClient.deleteOrgAdministration({ id }),
       createTitle: 'Add administration', renameTitle: 'Rename administration',
-      confirmDelete: (name) => `Delete administration "${name}"?`,
+      confirmDelete: (name) => `Delete administration "${name}"? Its manager assignment is removed too.`,
     },
     region: {
       create: (name) => MKNexus.ApiClient.createOrgRegion({ Name: name, AdministrationID: selectedAdministrationId }),
@@ -423,15 +486,10 @@ MKNexus.OrgChartModule = (function () {
       if (!node) return;
       const id = node.dataset.id;
       const actionBtn = e.target.closest('[data-action]');
+      const nodeName = node.querySelector('.orgchart-node__name')?.textContent;
 
-      if (actionBtn?.dataset.action === 'delete') {
-        deleteNode(level, id, node.querySelector('.orgchart-node__name')?.textContent);
-        return;
-      }
-      if (actionBtn?.dataset.action === 'rename') {
-        openNameModal(level, 'rename', id, node.querySelector('.orgchart-node__name')?.textContent);
-        return;
-      }
+      if (actionBtn?.dataset.action === 'delete') { deleteNode(level, id, nodeName); return; }
+      if (actionBtn?.dataset.action === 'rename') { openNameModal(level, 'rename', id, nodeName); return; }
       onSelect(id);
     });
   }
@@ -469,6 +527,8 @@ MKNexus.OrgChartModule = (function () {
     membersListEl = document.getElementById('orgMembersList');
     assignSelectEl = document.getElementById('orgAssignSelect');
     assignBtn = document.getElementById('orgAssignBtn');
+    peopleListEl = document.getElementById('orgPeopleList');
+    unplacedOnlyEl = document.getElementById('orgUnplacedOnly');
     nameModalEl = document.getElementById('orgNameModal');
     nameModalTitleEl = document.getElementById('orgNameModalTitle');
     nameInputEl = document.getElementById('orgNameInput');
@@ -496,6 +556,7 @@ MKNexus.OrgChartModule = (function () {
       const userId = btn.closest('[data-user-id]')?.dataset.userId;
       if (userId) removeMember(userId);
     });
+    unplacedOnlyEl.addEventListener('change', renderPeople);
   }
 
   function mount(container) {
@@ -504,7 +565,7 @@ MKNexus.OrgChartModule = (function () {
     cacheDom();
     bind();
 
-    sectors = []; administrations = []; regions = []; allUsers = [];
+    sectors = []; administrations = []; regions = []; assignments = []; allUsers = [];
     selectedSectorId = null; selectedAdministrationId = null; selectedRegionId = null;
 
     loadAll();

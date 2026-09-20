@@ -10,13 +10,14 @@ window.MKNexus = window.MKNexus || {};
      - Visual identity now follows MK Nexus's tokens (tokens.css) instead
        of the source's own teal/indigo mk-theme.css.
      - The admin Report view is gated on the shell's own logged-in session
-       role (MKNexus.Access.canViewReports() — Admin/Section Manger/
-       Manager) instead of a redirect to the separate Company-Portal site
-       + a client-side adminKey check — you're already authenticated to
-       get into the shell at all. Non-admin viewers of that Report view
-       are additionally scoped: Section Manger sees their whole sector,
-       Manager sees only their own engineers — see
-       core/data/team-directory.js.
+       (MKNexus.Access.canViewReports() — Admin, or anyone the Org Chart
+       makes an administration manager / sector head) instead of a
+       redirect to the separate Company-Portal site + a client-side
+       adminKey check — you're already authenticated to get into the shell
+       at all. Non-admin viewers of that Report view are additionally
+       scoped to their own team: an administration manager sees the
+       engineers of that administration's regions, a sector head sees
+       their whole sector — see core/data/team-directory.js.
      - Backend-sourced strings are HTML-escaped before being interpolated
        (the source site didn't).
    Everything else — field names, month generation, payment/print flow,
@@ -514,11 +515,12 @@ MKNexus.RentModule = (function () {
 
   function loadReport() {
     showLoader('جاري تحميل بيانات الإيجارات...');
-    // Manager sees only their own engineers (ManagerID); Section Manger
-    // sees their whole sector (SectorID); Admin sees everyone, same as
-    // before this scoping existed. See core/data/team-directory.js's
-    // header comment for why this is a client-side filter rather than a
-    // backend one (Rent has no login/session concept of its own).
+    // An administration manager sees the engineers of their
+    // administration's regions; a sector head sees their whole sector;
+    // Admin sees everyone. The team comes from the Org Chart (see
+    // core/data/team-directory.js's header comment for why this is a
+    // client-side filter rather than a backend one — Rent has no
+    // login/session concept of its own).
     const directoryReady = MKNexus.Access.isAdmin() ? Promise.resolve() : MKNexus.TeamDirectory.ensureLoaded();
     Promise.all([MKNexus.RentApi.getRentReport(), directoryReady])
       .then(([data]) => {

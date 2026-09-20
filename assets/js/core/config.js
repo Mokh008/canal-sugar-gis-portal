@@ -20,7 +20,10 @@ MKNexus.Config = (function () {
     // reads from, same trust level as Geo Intelligence/user management.
     { id: 'orgchart',     label: 'Org Chart',        icon: 'fa-solid fa-sitemap',                     roles: ['Admin'] },
     { id: 'operations',   label: 'Operations',        icon: 'fa-solid fa-gears',                       roles: ['Admin', 'Section Manger', 'Manager'] },
-    { id: 'attendance',   label: 'Attendance',        icon: 'fa-solid fa-user-clock',                  roles: ['Admin', 'Section Manger', 'Manager'] },
+    // orgManagers: also open to anyone the Org Chart makes an administration
+    // manager / sector head, even if their Users.Role is just "Engineer"
+    // (see core/access.js). What they see is limited to their own team.
+    { id: 'attendance',   label: 'Attendance',        icon: 'fa-solid fa-user-clock',                  roles: ['Admin', 'Section Manger', 'Manager'], orgManagers: true },
     { id: 'expenses',     label: 'Expenses',          icon: 'fa-solid fa-file-invoice-dollar',         roles: ['Admin', 'Section Manger', 'Manager', 'Engineer', 'Supervisor'] },
     { id: 'rent',         label: 'Rent',              icon: 'fa-solid fa-house-chimney',               roles: ['Admin', 'Section Manger', 'Manager', 'Engineer', 'Supervisor'] },
     { id: 'analytics',    label: 'Analytics',         icon: 'fa-solid fa-chart-line',                  roles: ['Admin', 'Section Manger'] },

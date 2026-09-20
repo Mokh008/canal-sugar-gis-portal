@@ -60,9 +60,7 @@ MKNexus.Login = (function () {
       name,
       role: user.role || user.title || MKNexus.SessionData.profile.role,
       initials: user.initials || deriveInitials(name) || MKNexus.SessionData.profile.initials,
-      // The logged-in user's own Users-sheet row ID (e.g. "USR009") — a
-      // Manager's own identity for the "my engineers only" report scope.
-      // See core/data/team-directory.js.
+      // The logged-in user's own Users-sheet row ID (e.g. "USR009").
       id: user.id || '',
       avatarUrl: user.avatarUrl || '',
       // Was already returned by the backend but never kept anywhere on
@@ -73,9 +71,11 @@ MKNexus.Login = (function () {
       // to a specific engineer; Rent/Expenses fall back to their manual
       // ID field in that case.
       engineerId: user.engineerId || '',
-      // See backend/mk-nexus-core/auth.gs — a Section Manger/Manager's
-      // sector code, used to scope Rent/Expenses report views.
-      sectorId: user.sectorId || '',
+      // Org Chart placement, resolved server-side at login — see
+      // core/data/session-data.js. Drives who gets the Report tabs and
+      // the Attendance module (core/access.js).
+      managesTeam: user.managesTeam === true,
+      positions: Array.isArray(user.positions) ? user.positions : [],
     };
   }
 

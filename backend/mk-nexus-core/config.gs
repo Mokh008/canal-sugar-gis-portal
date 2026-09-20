@@ -34,7 +34,21 @@ const CONFIG = {
     // sheet and would collide with CONFIG.SHEETS.ADMINISTRATIONS above.
     ORG_SECTORS: 'Org_Sectors',
     ORG_ADMINISTRATIONS: 'Org_Administrations',
-    ORG_REGIONS: 'Org_Regions'
+    ORG_REGIONS: 'Org_Regions',
+    // WHO SITS WHERE — the single source of truth for org placement (sector
+    // head / administration manager / region engineer). Auto-created on first
+    // use (see org-structure.gs's ensureOrgAssignmentsSheet_), so the Users
+    // sheet can stay purely descriptive (name, username, role, EngineerID...).
+    ORG_ASSIGNMENTS: 'Org_Assignments'
+  },
+
+  // The three placement levels an Org_Assignments row can point at. The
+  // string is what's stored in Org_Assignments.Level and what the frontend
+  // sends as `level` to assignOrgMember/unassignOrgMember.
+  ORG_LEVELS: {
+    SECTOR: 'sector',               // NodeID -> Org_Sectors.ID        (sector head / Section Manger)
+    ADMINISTRATION: 'administration', // NodeID -> Org_Administrations.ID (administration manager)
+    REGION: 'region'                // NodeID -> Org_Regions.ID         (region engineer)
   },
 
   // ROLES ALIGNED TO THE REAL USERS SHEET (was 'Administrator'/'Manager'/
@@ -79,13 +93,19 @@ const CONFIG = {
     GET_SETTINGS: 'getSettings',
     GET_USERS: 'getUsers',
     GET_AUDIT_LOG: 'getAuditLog',
-    GET_TEAM_DIRECTORY: 'getTeamDirectory', // see directory.gs — sector-scoping roster for Rent/Expenses reports
+    // see directory.gs — "who is on my team", computed server-side from the
+    // Org Chart for the calling user. Replaces the old getTeamDirectory
+    // roster (which handed the frontend everyone's SectorID/ManagerID to
+    // cross-reference itself). Any authenticated account may call it; an
+    // Engineer with no management position simply gets an empty team.
+    GET_MY_SCOPE: 'getMyScope',
 
     // NEW — Org Chart (Sector/Administration/Region hierarchy). See
-    // org-structure.gs. Reads are Manager+ (same gate as GET_TEAM_DIRECTORY,
-    // since the frontend needs the full tree to resolve a Manager's or
-    // Section Manger's scope); writes are Admin-only, wired in router.gs.
+    // org-structure.gs. All Admin-only, wired in router.gs: everyone else
+    // gets their (already-filtered) view through GET_MY_SCOPE above.
     GET_ORG_STRUCTURE: 'getOrgStructure',
+    ASSIGN_ORG_MEMBER: 'assignOrgMember',
+    UNASSIGN_ORG_MEMBER: 'unassignOrgMember',
     CREATE_ORG_SECTOR: 'createOrgSector',
     UPDATE_ORG_SECTOR: 'updateOrgSector',
     DELETE_ORG_SECTOR: 'deleteOrgSector',
@@ -153,7 +173,8 @@ const CONFIG = {
     PRESENTATION: 'Presentation',
     ORG_SECTOR: 'OrgSector',
     ORG_ADMINISTRATION: 'OrgAdministration',
-    ORG_REGION: 'OrgRegion'
+    ORG_REGION: 'OrgRegion',
+    ORG_ASSIGNMENT: 'OrgAssignment'
   },
 
   AUDIT_ACTIONS: {

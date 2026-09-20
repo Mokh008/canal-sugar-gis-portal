@@ -1,76 +1,199 @@
 /**
  * ============================================================
- * MK NEXUS BACKEND — TEAM DIRECTORY
- * NEW FILE. One lightweight read action (getTeamDirectory, wired in
- * router.gs / config.gs) so the Rent/Expenses frontend modules can scope
- * their admin-report views to "my sector" for Section Manger/Manager
- * accounts, instead of the all-or-nothing choice that existed before
- * (isAdmin() ? show every sector's data : show nothing).
+ * MK NEXUS BACKEND — TEAM SCOPE ("who is on my team")
  *
- * TWO LEVELS OF SCOPING, TWO COLUMNS:
- *  - SectorID: a whole sector's shared code (e.g. "USR001") — a Section
- *    Manger sees every row whose SectorID matches their own.
- *  - ManagerID: NEW. A Manager sees only the rows of the engineers/
- *    supervisors *directly under them*, which is narrower than their
- *    whole sector. Put the Manager's own `ID` (the Users sheet's own ID
- *    column, e.g. "USR009" — NOT their EngineerID) in this column on
- *    every Engineer/Supervisor row they directly supervise. Leave it
- *    blank for anyone with no specific Manager (they're still covered by
- *    their Section Manger's SectorID scoping, just not by any Manager's
- *    narrower one). A Manager's own row needs SectorID filled in (same
- *    as everyone else in their sector) but doesn't need a ManagerID of
- *    its own.
+ * REWRITTEN. This file used to expose getTeamDirectory: a roster carrying
+ * every user's SectorID/ManagerID, which the frontend cross-referenced
+ * itself. Placement no longer lives on the Users sheet at all — the Org
+ * Chart tool writes it to Org_Assignments (see org-structure.gs) — and the
+ * "who counts as my team" question is now answered here, on the server,
+ * so no client ever receives the whole org tree just to filter it.
  *
- * WHY THIS LIVES HERE, NOT ON THE RENT/EXPENSES BACKENDS: those two are
- * separate Apps Script deployments with no login/session concept at all
- * (see backend/rent/README.md and backend/expenses/README.md's "Still
- * open" sections) — their report rows only carry a bare `engineerId`
- * with no sector info and no way to verify who's asking. Rather than
- * build a second authentication system for them, this mirrors the
- * pattern already used for the per-engineer ID lock (Users.EngineerID
- * on the session, see auth.gs): the one backend that *does* have real
- * login/sessions exposes the Users-sheet roster, and the Rent/Expenses
- * frontend modules cross-reference a report row's engineerId against it
- * client-side. Not a hard security boundary for Rent/Expenses' own data
- * (nothing can be, until those two backends get real auth — a bigger,
- * separately-scoped fix) but it does correctly restrict who sees what
- * inside the one piece of this system that IS authenticated.
+ * WHAT DRIVES ACCESS: the position a person holds in the Org Chart, never
+ * their Users.Role (which is only a job title):
+ *   - manager of an administration -> the engineers of that
+ *                                     administration's regions
+ *   - head of a sector             -> the engineers of every region of
+ *                                     every administration in the sector
+ *   - Admin                        -> everyone
+ *   - anyone else                  -> an empty team
+ * Consumed by Expenses / Rent (report rows are keyed by the engineer's
+ * numeric EngineerID) and Attendance (fingerprint rows are keyed by name).
+ *
+ * NOT a hard security boundary for Rent/Expenses/Attendance's own data:
+ * those three are separate deployments with no session concept, so what
+ * this scopes is what the portal chooses to show (see their READMEs).
  * ============================================================
  */
 
 /**
- * Returns the active-user roster, non-sensitive fields only (no email,
- * username, or password/salt) — just enough to group people by sector
- * and by direct manager: EngineerID (matches Rent/Expenses' own
- * engineerId field), SectorID, ManagerID, FullName, and the
- * canonicalized Role. Restricted to Manager and above (see router.gs)
- * since this is only ever consumed by report-scoping logic those roles
- * need; Engineer/Supervisor accounts have no use for it and don't get it.
- * @param {Object} context
- * @returns {Array<Object>}
+ * Loads everything the scope resolver joins, in one place.
+ * @returns {Object}
  */
-function handleGetTeamDirectory_(context) {
-  const users = readSheetAsObjects_(CONFIG.SHEETS.USERS);
+function loadOrgIndex_() {
+  return {
+    sectors: readSheetAsObjects_(CONFIG.SHEETS.ORG_SECTORS),
+    administrations: readSheetAsObjects_(CONFIG.SHEETS.ORG_ADMINISTRATIONS),
+    regions: readSheetAsObjects_(CONFIG.SHEETS.ORG_REGIONS),
+    assignments: readOrgAssignments_(),
+    users: readSheetAsObjects_(CONFIG.SHEETS.USERS)
+  };
+}
 
-  return users
-    .filter(u => String(u.IsActive).toUpperCase() !== 'FALSE')
-    .map(u => ({
-      engineerId: u.EngineerID ? String(u.EngineerID).trim() : '',
-      sectorId: u.SectorID ? String(u.SectorID).trim() : '',
-      managerId: u.ManagerID ? String(u.ManagerID).trim() : '',
-      // NEW — Org Chart placement (see org-structure.gs). orgAdministrationId
-      // is set on Manager rows, orgRegionId on Engineer/Supervisor rows.
-      // Added alongside sectorId/managerId, not instead of them, so the
-      // existing 2-tier scoping in team-directory.js keeps working
-      // unchanged until it's migrated to walk the 3-tier tree.
-      orgAdministrationId: u.OrgAdministrationID ? String(u.OrgAdministrationID).trim() : '',
-      orgRegionId: u.OrgRegionID ? String(u.OrgRegionID).trim() : '',
-      name: u.FullName || '',
-      role: normalizeRole_(u.Role)
-    }))
-    // A row with no EngineerID can't be cross-referenced against a
-    // Rent/Expenses report row (which is always keyed by engineerId), so
-    // it's dead weight for this endpoint's one purpose — drop it rather
-    // than making every caller filter it out themselves.
-    .filter(row => row.engineerId !== '');
+/**
+ * The display name of a Users row. The live sheet's name column is read
+ * as `FullName` by login, but users.gs's create path writes `Name` — take
+ * whichever is filled in.
+ * @param {Object} u
+ * @returns {string}
+ */
+function userDisplayName_(u) {
+  return String((u && (u.FullName || u.Name)) || '').trim();
+}
+
+function isActiveUserRow_(u) {
+  return String(u.IsActive).toUpperCase() !== 'FALSE';
+}
+
+/**
+ * Every position `userId` holds, as human-readable entries, plus the raw
+ * node IDs the scope is computed from.
+ * @param {string} userId
+ * @param {Object} idx - loadOrgIndex_()
+ * @returns {{sectorIds: Array<string>, administrationIds: Array<string>, positions: Array<{level: string, id: string, name: string, path: string}>}}
+ */
+function findOrgPositions_(userId, idx) {
+  const byId = rows => rows.reduce((m, r) => { m[String(r.ID)] = r; return m; }, {});
+  const sectors = byId(idx.sectors), administrations = byId(idx.administrations), regions = byId(idx.regions);
+
+  const sectorIds = [], administrationIds = [], positions = [];
+  idx.assignments.filter(a => String(a.UserID) === String(userId)).forEach(a => {
+    const nodeId = String(a.NodeID);
+    if (a.Level === CONFIG.ORG_LEVELS.SECTOR && sectors[nodeId]) {
+      sectorIds.push(nodeId);
+      positions.push({ level: a.Level, id: nodeId, name: sectors[nodeId].Name, path: sectors[nodeId].Name });
+    } else if (a.Level === CONFIG.ORG_LEVELS.ADMINISTRATION && administrations[nodeId]) {
+      administrationIds.push(nodeId);
+      const sector = sectors[String(administrations[nodeId].SectorID)];
+      positions.push({
+        level: a.Level, id: nodeId, name: administrations[nodeId].Name,
+        path: (sector ? sector.Name + ' › ' : '') + administrations[nodeId].Name
+      });
+    } else if (a.Level === CONFIG.ORG_LEVELS.REGION && regions[nodeId]) {
+      const administration = administrations[String(regions[nodeId].AdministrationID)];
+      const sector = administration ? sectors[String(administration.SectorID)] : null;
+      positions.push({
+        level: a.Level, id: nodeId, name: regions[nodeId].Name,
+        path: [sector && sector.Name, administration && administration.Name, regions[nodeId].Name].filter(Boolean).join(' › ')
+      });
+    }
+  });
+  return { sectorIds: sectorIds, administrationIds: administrationIds, positions: positions };
+}
+
+/**
+ * The small summary stamped onto the session at login (auth.gs): the
+ * caller's positions and whether they manage anyone. Lets the frontend
+ * decide which tabs/modules to show without a second round trip; the
+ * actual team list is fetched separately, fresh, via getMyScope.
+ * Never throws — a broken Org sheet must not be able to block a login.
+ * @param {string} userId
+ * @returns {{managesTeam: boolean, positions: Array<Object>}}
+ */
+function getLoginOrgInfo_(userId) {
+  try {
+    const found = findOrgPositions_(userId, loadOrgIndex_());
+    return {
+      managesTeam: found.sectorIds.length + found.administrationIds.length > 0,
+      positions: found.positions
+    };
+  } catch (err) {
+    logError_('Org info lookup failed at login for user ' + userId, { message: err && err.message });
+    return { managesTeam: false, positions: [] };
+  }
+}
+
+/**
+ * Route handler: GET_MY_SCOPE (any authenticated account). Returns the
+ * caller's positions and the team they may see:
+ *   team       - people placed in a region within the caller's scope
+ *   unassigned - Admin only: active Engineer/Supervisor accounts that hold
+ *                no position anywhere yet (so a gap shows up instead of
+ *                silently missing from every report)
+ * Each member carries what the three consumers key on: `engineerId`
+ * (Expenses/Rent report rows), `name`/`attendanceName` (Attendance
+ * fingerprint rows), and the region/administration/sector they sit in.
+ * Inactive accounts are never included.
+ * @param {Object} context
+ * @returns {{isAdmin: boolean, managesTeam: boolean, positions: Array<Object>, team: Array<Object>, unassigned: Array<Object>}}
+ */
+function handleGetMyScope_(context) {
+  const idx = loadOrgIndex_();
+  const isAdmin = context.user.role === CONFIG.ROLES.ADMIN;
+  const mine = findOrgPositions_(context.user.id, idx);
+
+  const inScopeAdministrations = {};
+  if (isAdmin) {
+    idx.administrations.forEach(a => { inScopeAdministrations[String(a.ID)] = true; });
+  } else {
+    mine.administrationIds.forEach(id => { inScopeAdministrations[id] = true; });
+    idx.administrations.forEach(a => {
+      if (mine.sectorIds.indexOf(String(a.SectorID)) !== -1) inScopeAdministrations[String(a.ID)] = true;
+    });
+  }
+
+  const byId = rows => rows.reduce((m, r) => { m[String(r.ID)] = r; return m; }, {});
+  const sectors = byId(idx.sectors), administrations = byId(idx.administrations), regions = byId(idx.regions);
+  const users = byId(idx.users);
+
+  const toMember = (user, region) => {
+    const administration = region ? administrations[String(region.AdministrationID)] : null;
+    const sector = administration ? sectors[String(administration.SectorID)] : null;
+    return {
+      userId: String(user.ID),
+      engineerId: user.EngineerID ? String(user.EngineerID).trim() : '',
+      name: userDisplayName_(user),
+      attendanceName: user.AttendanceName ? String(user.AttendanceName).trim() : '',
+      role: normalizeRole_(user.Role),
+      regionId: region ? String(region.ID) : '',
+      regionName: region ? String(region.Name) : '',
+      administrationId: administration ? String(administration.ID) : '',
+      administrationName: administration ? String(administration.Name) : '',
+      sectorId: sector ? String(sector.ID) : '',
+      sectorName: sector ? String(sector.Name) : ''
+    };
+  };
+
+  const team = [];
+  idx.assignments.forEach(a => {
+    if (a.Level !== CONFIG.ORG_LEVELS.REGION) return;
+    const region = regions[String(a.NodeID)];
+    const user = users[String(a.UserID)];
+    if (!region || !user || !isActiveUserRow_(user)) return;
+    if (!inScopeAdministrations[String(region.AdministrationID)]) return;
+    team.push(toMember(user, region));
+  });
+
+  // "Unassigned" = holds NO position anywhere in the Org Chart. Someone who
+  // manages an administration or heads a sector is placed, even if they
+  // aren't the engineer of any particular region.
+  const holdsAnyPosition = {};
+  idx.assignments.forEach(a => { holdsAnyPosition[String(a.UserID)] = true; });
+
+  const unassigned = [];
+  if (isAdmin) {
+    idx.users.forEach(u => {
+      if (!isActiveUserRow_(u) || holdsAnyPosition[String(u.ID)]) return;
+      const role = normalizeRole_(u.Role);
+      if (role === CONFIG.ROLES.ENGINEER || role === CONFIG.ROLES.SUPERVISOR) unassigned.push(toMember(u, null));
+    });
+  }
+
+  return {
+    isAdmin: isAdmin,
+    managesTeam: isAdmin || mine.sectorIds.length + mine.administrationIds.length > 0,
+    positions: mine.positions,
+    team: team,
+    unassigned: unassigned
+  };
 }

@@ -11,6 +11,91 @@ replacing the existing ones of the same name. Files not listed here
 `handleGet*_`/`handleCreate*_`/etc. handlers live — weren't shared for
 this review, so they're untouched and not included here.
 
+## Org Chart is the single source of truth (latest — read this first)
+
+**The Users sheet is now descriptive only** (name, username, email, role,
+`EngineerID`, optional `AttendanceName`, active flag). *Who manages which
+administration, and which engineers work which region, is no longer stored
+on Users at all* — it lives in a new **`Org_Assignments`** sheet that only
+the Org Chart tool writes to. This supersedes the `SectorID`/`ManagerID`/
+`OrgAdministrationID`/`OrgRegionID` wiring described further down (those
+sections are kept for history and marked *superseded*).
+
+```
+Org_Sectors          ID | Name | CreatedAt | UpdatedAt
+Org_Administrations  ID | Name | SectorID | CreatedAt | UpdatedAt
+Org_Regions          ID | Name | AdministrationID | CreatedAt | UpdatedAt
+Org_Assignments      ID | UserID | Level | NodeID | CreatedAt      <- NEW, auto-created
+                     Level = sector | administration | region
+```
+
+- **sector** = the sector's head · **administration** = that administration's
+  manager(s) · **region** = the engineers of that region. A region has many
+  engineers, but a person is the engineer of only **one** region (assigning
+  them to another moves them).
+- **A user's `Role` grants nothing here** — it is just a job title. An
+  "Engineer" can be an administration's manager; what they see comes only
+  from the position the Org Chart gives them.
+
+### Who sees whose Expenses / Rent / Attendance
+Computed **server-side** by the new `getMyScope` action (any signed-in
+account) from the Org Chart:
+
+| Position | Sees the data of |
+|---|---|
+| Administration manager | the engineers of that administration's regions |
+| Sector head | the engineers of every region in every administration of the sector |
+| Admin | everyone (plus a list of active Engineer/Supervisor accounts not placed anywhere) |
+| anyone else | nobody (they only ever see their own entries) |
+
+Rent/Expenses match a report row to a person by **`EngineerID`**; Attendance
+matches a fingerprint row by **name** (`AttendanceName` if filled in,
+otherwise the full name). Login now returns `managesTeam` + `positions`
+(replacing `sectorId`), which is what unlocks the Report tabs and the
+Attendance module for a manager.
+
+### Routes
+| Action | Who | |
+|---|---|---|
+| `getMyScope` | any signed-in account | the caller's positions + team |
+| `getOrgStructure` | Admin (was Manager+) | tree + all placements |
+| `assignOrgMember` / `unassignOrgMember` | Admin | `{ userId, level, nodeId }` |
+| `getTeamDirectory` | — removed — | replaced by `getMyScope` |
+
+### Deploy checklist
+1. Paste `config.gs`, `router.gs`, `auth.gs`, `users.gs`, `directory.gs`,
+   `org-structure.gs` into the Apps Script project and **redeploy** the web
+   app (new version).
+2. Run **`runOneTimeOrgMigration_()`** once from the editor. It copies
+   anything the old Org Chart wrote onto Users rows
+   (`OrgRegionID`/`OrgAdministrationID`, and `SectorID` on Section Manger
+   rows) into `Org_Assignments`. Safe to re-run.
+3. Open **Org Chart** and finish the layout: regions under administrations,
+   each administration's manager, each region's engineers. The "Everyone"
+   panel lists anyone not placed yet; a member with no `EngineerID` is
+   flagged (Rent/Expenses can't match them).
+4. Optional clean-up of the Users sheet — the columns `SectorID`,
+   `ManagerID`, `OrgAdministrationID`, `OrgRegionID` are no longer read or
+   written anywhere and can be deleted (after step 2). **Leave**
+   `GovernorateID`/`AdministrationID`/`DistrictID` alone — they belong to
+   Geo Intelligence.
+5. Optional: add an `AttendanceName` column to Users for anyone whose
+   fingerprint-device name differs from their full name. Admin's Attendance
+   view lists fingerprint names that match nobody, to make those easy to spot.
+
+### Also fixed on the way
+- `getUsers` didn't return `FullName`, `EngineerID` or the geo IDs, so the
+  Org Chart and Settings showed blank names and (worse) **editing a user in
+  Settings wrote blanks back over `EngineerID` and the geo IDs**. They are
+  now returned.
+- The old Org Chart could never show who sat where: it filtered `getUsers`
+  rows by placement columns that `getUsers` never returned.
+- Deleting a user now also removes their placements; deleting an
+  administration/sector removes its manager/head assignment; deleting a
+  region is still refused while it has engineers.
+
+---
+
 ## What changed and why
 
 ### `auth.gs` — Critical: plaintext passwords
@@ -157,7 +242,7 @@ the plainer `manager` substring match); called once at login (see
 `auth.gs`) so everything downstream — session, permission checks, audit
 log, frontend — sees one consistent value per role.
 
-### `auth.gs` — canonicalized role + added `sectorId` to the session
+### `auth.gs` — canonicalized role + added `sectorId` to the session *(superseded — login now returns `managesTeam`/`positions` from the Org Chart; see the top section)*
 `handleLogin_`'s `safeUser.role` is now `normalizeRole_(user.Role)`
 instead of the raw sheet value. Also added `safeUser.sectorId` (from a
 new, optional `SectorID` column on `Users`, same pattern as the
@@ -179,7 +264,7 @@ see. Also added the `getTeamDirectory` route, minimum role `MANAGER`
 (so Manager/Section Manger/Admin can call it; Engineer/Supervisor
 cannot).
 
-### `directory.gs` — new file
+### `directory.gs` — new file *(superseded — now implements `getMyScope`; `getTeamDirectory` is gone, see the top section)*
 Implements `handleGetTeamDirectory_`, a lightweight, non-sensitive
 roster read (`EngineerID`/`SectorID`/`ManagerID`/`FullName`/canonical
 `Role` only — no email, username, or password fields) used by the
@@ -210,7 +295,7 @@ bytes, which silently renders as nothing in an `<img>`/background-image
 `handleLogin_`'s response now includes `avatarUrl` too. No sheet setup
 needed — the column appears on first use.
 
-**To wire someone up (two independent columns on `Users`):**
+**To wire someone up (two independent columns on `Users`)** *(superseded — placement is now done in the Org Chart tool, not on the Users sheet)*:
 - `SectorID` — a whole sector's shared code (e.g. `USR001`). Put the
   same code on every row (Manager, Engineer, Supervisor) that belongs
   to a given Section Manger's sector, including the Section Manger's
@@ -268,7 +353,7 @@ from the website's Org Chart tool — no more manual sheet editing):
 - `Org_Administrations`: `ID | Name | SectorID | CreatedAt | UpdatedAt`
 - `Org_Regions`: `ID | Name | AdministrationID | CreatedAt | UpdatedAt`
 
-**Wiring a user into the tree** — two new columns on `Users`, alongside
+**Wiring a user into the tree** *(superseded — users are now placed through `Org_Assignments` via the Org Chart tool; see the top section)* — two new columns on `Users`, alongside
 the existing `SectorID`/`ManagerID` (which keep working unchanged):
 - `OrgAdministrationID` — set on a **Manager**'s own row to the
   `Org_Administrations.ID` they head.

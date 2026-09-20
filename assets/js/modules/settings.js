@@ -19,10 +19,14 @@ window.MKNexus = window.MKNexus || {};
        User entity type — that file IS fully visible, and lists those
        four as the literal required payload keys.
      - Everything else (GovernorateID/AdministrationID/DistrictID/
-       SectorID/ManagerID/EngineerID/IsActive) matches the Users sheet's
-       own column headers exactly, the same convention auth.gs and
-       directory.gs already read from (readSheetAsObjects_ keys objects
-       by literal header text).
+       EngineerID/AttendanceName/IsActive) matches the Users sheet's own
+       column headers exactly, the same convention auth.gs already reads
+       from (readSheetAsObjects_ keys objects by literal header text).
+     - ORG PLACEMENT IS NOT EDITED HERE. Who manages which administration
+       / is an engineer of which region is set only in the Org Chart
+       module (stored in the backend's Org_Assignments sheet), never on
+       the Users sheet — this screen only DISPLAYS a person's position
+       (read from getOrgStructure) so it is visible at a glance.
      - The initial-password field is the biggest unknown — sent as
        `PasswordHash`, matching the sheet's own column name and how the
        rest of this system already treats that column pre-migration
@@ -44,9 +48,10 @@ MKNexus.SettingsModule = (function () {
   let usersTableBodyEl, usersCardsEl, usersSearchEl, addUserBtn, usersStateEl;
   let modalEl, modalTitleEl, modalNoteEl;
   let fldId, fldName, fldUsername, fldEmail, fldRole, fldPassword, fldPasswordRow,
-    fldGov, fldAdmin, fldDistrict, fldSector, fldManager, fldEngineer;
+    fldGov, fldAdmin, fldDistrict, fldEngineer, fldAttendanceName;
 
   let allUsers = [];
+  let orgStructure = null; // getOrgStructure() result, for the position column; null if unavailable
   let usersLoadedOnce = false;
   let editingOriginalRole = null;
 
@@ -102,7 +107,7 @@ MKNexus.SettingsModule = (function () {
               <div><span class="settings-info-item__label">اسم المستخدم</span><span class="settings-info-item__value" id="settingsProfileUsername"></span></div>
               <div><span class="settings-info-item__label">البريد الإلكتروني</span><span class="settings-info-item__value" id="settingsProfileEmail"></span></div>
               <div><span class="settings-info-item__label">رقم المهندس</span><span class="settings-info-item__value" id="settingsProfileEngineerId"></span></div>
-              <div><span class="settings-info-item__label">كود القطاع</span><span class="settings-info-item__value" id="settingsProfileSectorId"></span></div>
+              <div><span class="settings-info-item__label">الموقع في الهيكل</span><span class="settings-info-item__value" id="settingsProfilePosition"></span></div>
             </div>
           </div>
         </section>
@@ -138,7 +143,7 @@ MKNexus.SettingsModule = (function () {
           <div class="settings-table-wrap">
             <table class="settings-table">
               <thead><tr>
-                <th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>القطاع</th><th>المدير المباشر</th><th>الحالة</th><th>إجراءات</th>
+                <th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>رقم المهندس</th><th>الموقع في الهيكل</th><th>الحالة</th><th>إجراءات</th>
               </tr></thead>
               <tbody id="settingsUsersBody"><tr><td class="settings-state-msg" colspan="7">جاري التحميل...</td></tr></tbody>
             </table>
@@ -183,12 +188,8 @@ MKNexus.SettingsModule = (function () {
                   <input class="settings-input" id="settingsFldEngineer">
                 </div>
                 <div class="settings-field">
-                  <label class="settings-label">كود القطاع (SectorID)</label>
-                  <input class="settings-input" id="settingsFldSector">
-                </div>
-                <div class="settings-field">
-                  <label class="settings-label">ID المدير المباشر (ManagerID)</label>
-                  <input class="settings-input" id="settingsFldManager">
+                  <label class="settings-label">اسم البصمة (اختياري)</label>
+                  <input class="settings-input" id="settingsFldAttendanceName" placeholder="زي ما بيظهر في جهاز البصمة">
                 </div>
                 <div class="settings-field">
                   <label class="settings-label">المحافظة (GovernorateID)</label>
@@ -241,7 +242,7 @@ MKNexus.SettingsModule = (function () {
     document.getElementById('settingsProfileUsername').textContent = p.username || '—';
     document.getElementById('settingsProfileEmail').textContent = p.email || '—';
     document.getElementById('settingsProfileEngineerId').textContent = p.engineerId || '—';
-    document.getElementById('settingsProfileSectorId').textContent = p.sectorId || '—';
+    document.getElementById('settingsProfilePosition').textContent = positionsText(p.positions) || '—';
   }
 
   // Reads the chosen file, downscales it on a <canvas> (max 300px on the
@@ -327,6 +328,34 @@ MKNexus.SettingsModule = (function () {
     return haystack.includes(query);
   }
 
+  // "Where is this person in the org?" — read from the Org Chart data
+  // (getOrgStructure), never from the Users sheet. Arabic labels, since
+  // this screen is RTL.
+  function positionLabelsFor(userId) {
+    if (!orgStructure) return [];
+    const { sectors = [], administrations = [], regions = [], assignments = [] } = orgStructure;
+    const find = (rows, id) => rows.find((r) => String(r.ID) === String(id));
+    return assignments.filter((a) => String(a.UserID) === String(userId)).map((a) => {
+      if (a.Level === 'sector') return `رئيس قطاع ${find(sectors, a.NodeID)?.Name || ''}`.trim();
+      if (a.Level === 'administration') return `مدير إدارة ${find(administrations, a.NodeID)?.Name || ''}`.trim();
+      return `مهندس منطقة ${find(regions, a.NodeID)?.Name || ''}`.trim();
+    });
+  }
+
+  function positionText(userId) {
+    if (!orgStructure) return '—';
+    return positionLabelsFor(userId).join('، ') || 'غير موزّع';
+  }
+
+  // The session's own positions (see core/data/session-data.js) — already
+  // { level, name, path } objects resolved by the backend at login.
+  function positionsText(positions) {
+    return (Array.isArray(positions) ? positions : []).map((p) => {
+      const prefix = p.level === 'sector' ? 'رئيس قطاع' : p.level === 'administration' ? 'مدير إدارة' : 'مهندس منطقة';
+      return `${prefix} ${p.name || ''}`.trim();
+    }).join('، ');
+  }
+
   function userRowHtml(u) {
     const active = isActiveUser(u);
     return `
@@ -334,8 +363,8 @@ MKNexus.SettingsModule = (function () {
         <td class="settings-strong">${escapeHtml(u.FullName) || '—'}</td>
         <td class="settings-muted">${escapeHtml(u.Username) || '—'}</td>
         <td><span class="settings-badge settings-badge--role">${escapeHtml(u.Role) || '—'}</span></td>
-        <td class="settings-muted">${escapeHtml(u.SectorID) || '—'}</td>
-        <td class="settings-muted">${escapeHtml(u.ManagerID) || '—'}</td>
+        <td class="settings-muted">${escapeHtml(u.EngineerID) || '—'}</td>
+        <td class="settings-muted">${escapeHtml(positionText(u.ID))}</td>
         <td><span class="settings-badge ${active ? 'settings-badge--active' : 'settings-badge--inactive'}">${active ? 'مفعّل' : 'موقوف'}</span></td>
         <td>
           <div class="settings-row-actions">
@@ -358,8 +387,8 @@ MKNexus.SettingsModule = (function () {
         <div class="settings-user-card__grid">
           <div><span class="settings-info-item__label">اسم المستخدم</span><span class="settings-info-item__value">${escapeHtml(u.Username) || '—'}</span></div>
           <div><span class="settings-info-item__label">الدور</span><span class="settings-info-item__value">${escapeHtml(u.Role) || '—'}</span></div>
-          <div><span class="settings-info-item__label">القطاع</span><span class="settings-info-item__value">${escapeHtml(u.SectorID) || '—'}</span></div>
-          <div><span class="settings-info-item__label">المدير</span><span class="settings-info-item__value">${escapeHtml(u.ManagerID) || '—'}</span></div>
+          <div><span class="settings-info-item__label">رقم المهندس</span><span class="settings-info-item__value">${escapeHtml(u.EngineerID) || '—'}</span></div>
+          <div><span class="settings-info-item__label">الموقع في الهيكل</span><span class="settings-info-item__value">${escapeHtml(positionText(u.ID))}</span></div>
         </div>
         <div class="settings-row-actions">
           <button class="settings-icon-btn" type="button" data-action="edit" title="تعديل"><i class="fa-solid fa-pen"></i></button>
@@ -395,9 +424,13 @@ MKNexus.SettingsModule = (function () {
 
   function loadUsers() {
     showLoader('جاري تحميل المستخدمين...');
-    MKNexus.ApiClient.getUsers()
-      .then((data) => {
+    // The org structure only feeds the read-only "position" column — if it
+    // can't be loaded the user list must still show, so its failure is
+    // swallowed (the column then shows "—").
+    Promise.all([MKNexus.ApiClient.getUsers(), MKNexus.ApiClient.getOrgStructure().catch(() => null)])
+      .then(([data, structure]) => {
         hideLoader();
+        orgStructure = structure;
         allUsers = normalizeUsersResponse(data);
         if (!allUsers.length) {
           usersTableBodyEl.innerHTML = '<tr><td class="settings-state-msg" colspan="7">لا يوجد مستخدمين، أو تعذر قراءة استجابة الخادم</td></tr>';
@@ -422,17 +455,17 @@ MKNexus.SettingsModule = (function () {
   function openModal(user) {
     const isEdit = Boolean(user);
     modalTitleEl.textContent = isEdit ? 'تعديل مستخدم' : 'إضافة مستخدم';
-    modalNoteEl.textContent = isEdit
+    modalNoteEl.textContent = (isEdit
       ? 'سيب خانة كلمة المرور فاضية لو مش عايز تغيّرها.'
-      : 'اكتب كلمة مرور مبدئية — المستخدم هيقدر يغيّرها بعد أول دخول.';
+      : 'اكتب كلمة مرور مبدئية — المستخدم هيقدر يغيّرها بعد أول دخول.')
+      + ' توزيع المستخدم على الإدارات والمناطق بيتم من موديول Org Chart.';
     fldId.value = user?.ID || '';
     fldName.value = user?.FullName || '';
     fldUsername.value = user?.Username || '';
     fldEmail.value = user?.Email || '';
     fldRole.value = user?.Role && ROLE_OPTIONS.includes(user.Role) ? user.Role : ROLE_OPTIONS[0];
     fldEngineer.value = user?.EngineerID || '';
-    fldSector.value = user?.SectorID || '';
-    fldManager.value = user?.ManagerID || '';
+    fldAttendanceName.value = user?.AttendanceName || '';
     fldGov.value = user?.GovernorateID || '';
     fldAdmin.value = user?.AdministrationID || '';
     fldDistrict.value = user?.DistrictID || '';
@@ -456,12 +489,14 @@ MKNexus.SettingsModule = (function () {
       Email: fldEmail.value.trim(),
       Role: fldRole.value,
       EngineerID: fldEngineer.value.trim(),
-      SectorID: fldSector.value.trim(),
-      ManagerID: fldManager.value.trim(),
       GovernorateID: fldGov.value.trim(),
       AdministrationID: fldAdmin.value.trim(),
       DistrictID: fldDistrict.value.trim(),
     };
+    // Only sent when filled in: the AttendanceName column is optional and
+    // may not exist on the Users sheet yet (see backend/mk-nexus-core/README.md).
+    const attendanceName = fldAttendanceName.value.trim();
+    if (attendanceName) payload.AttendanceName = attendanceName;
     if (!payload.Name || !payload.Username || !payload.Email) {
       MKNexus.Toast.warning('من فضلك املأ الاسم واسم المستخدم والبريد الإلكتروني');
       return;
@@ -583,8 +618,7 @@ MKNexus.SettingsModule = (function () {
       fldRole = document.getElementById('settingsFldRole');
       fldPassword = document.getElementById('settingsFldPassword');
       fldEngineer = document.getElementById('settingsFldEngineer');
-      fldSector = document.getElementById('settingsFldSector');
-      fldManager = document.getElementById('settingsFldManager');
+      fldAttendanceName = document.getElementById('settingsFldAttendanceName');
       fldGov = document.getElementById('settingsFldGov');
       fldAdmin = document.getElementById('settingsFldAdmin');
       fldDistrict = document.getElementById('settingsFldDistrict');

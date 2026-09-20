@@ -8,12 +8,13 @@ window.MKNexus = window.MKNexus || {};
    Differences from the source site, by design (same choices as the Rent
    module port):
      - MK Nexus tokens instead of the source's own mk-theme.css.
-     - Report view gated on MKNexus.Access.canViewReports() (Admin/
-       Section Manger/Manager) instead of a redirect to the separate
-       Company-Portal site + adminKey check. Non-admin viewers of that
-       view are additionally scoped: Section Manger sees their whole
-       sector, Manager sees only their own engineers — see
-       core/data/team-directory.js.
+     - Report view gated on MKNexus.Access.canViewReports() (Admin, or
+       anyone the Org Chart makes an administration manager / sector head)
+       instead of a redirect to the separate Company-Portal site +
+       adminKey check. Non-admin viewers of that view are additionally
+       scoped to their own team: an administration manager sees the
+       engineers of that administration's regions, a sector head sees
+       their whole sector — see core/data/team-directory.js.
      - Backend-sourced strings are HTML-escaped before interpolation. */
 MKNexus.ExpensesModule = (function () {
   let containerEl = null;
@@ -426,11 +427,12 @@ MKNexus.ExpensesModule = (function () {
 
   function loadReport() {
     showLoader('جاري تحميل بيانات المصروفات...');
-    // Manager sees only their own engineers (ManagerID); Section Manger
-    // sees their whole sector (SectorID); Admin sees everyone, same as
-    // before this scoping existed. See core/data/team-directory.js's
-    // header comment for why this is a client-side filter rather than a
-    // backend one (Expenses has no login/session concept of its own).
+    // An administration manager sees the engineers of their
+    // administration's regions; a sector head sees their whole sector;
+    // Admin sees everyone. The team comes from the Org Chart (see
+    // core/data/team-directory.js's header comment for why this is a
+    // client-side filter rather than a backend one — Expenses has no
+    // login/session concept of its own).
     const directoryReady = MKNexus.Access.isAdmin() ? Promise.resolve() : MKNexus.TeamDirectory.ensureLoaded();
     Promise.all([MKNexus.ExpensesApi.getExpensesReport(), directoryReady])
       .then(([data]) => {
