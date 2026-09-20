@@ -7,7 +7,7 @@ MKNexus.ApiConfig = Object.freeze({
   // see backend/mk-nexus-core/org-structure.gs, directory.gs and
   // modules/org-chart.js). See backend/mk-nexus-core/README.md for the
   // full change log.
-  baseUrl: 'https://script.google.com/macros/s/AKfycbytBzg8oxpeEsugX41kBtorHGU_CFqEFeCFEJbtelb6OTiPFQgbyLHKA5CZ_NemErbIvQ/exec',
+  baseUrl: 'https://script.google.com/macros/s/AKfycbzls5AoesPNKU7r40P7pUhESK2LIfST05TOaATWRldx3QNTz80BdspgrpY0ND2c0lVOhA/exec',
   actions: Object.freeze([
     'login', 'validateSession', 'logout',
     'getGovernorates', 'getAdministrations', 'getDistricts', 'getZones', 'getPolygon',
