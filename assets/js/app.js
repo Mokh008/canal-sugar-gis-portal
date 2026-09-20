@@ -256,6 +256,7 @@
     // is being deleted from local storage regardless, and the server-
     // side copy will still expire on its own TTL if this call fails.
     MKNexus.ApiClient?.logout?.().catch(() => {});
+    MKNexus.TeamDirectory?.reset(); // the next account must not inherit this one's team scope
 
     try {
       const key = MKNexus.ApiConfig.sessionStorageKey;

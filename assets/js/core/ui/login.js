@@ -55,6 +55,9 @@ MKNexus.Login = (function () {
   function applySessionProfile(data) {
     const user = data?.user || data?.profile;
     if (!user) return;
+    // A new sign-in must never start from the previous account's cached
+    // team (logging out doesn't reload the page) — see core/data/team-directory.js.
+    MKNexus.TeamDirectory?.reset();
     const name = user.name || user.fullName || MKNexus.SessionData.profile.name;
     MKNexus.SessionData.profile = {
       name,
