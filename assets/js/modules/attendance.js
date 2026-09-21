@@ -24,24 +24,36 @@ window.MKNexus = window.MKNexus || {};
    (plus a group of active Engineer/Supervisor accounts placed nowhere yet,
    so a gap in the Org Chart is visible instead of silently missing).
 
-   Fingerprint rows only carry a person's NAME (no ID), so a row is matched
-   to a person by name: Users.AttendanceName if that optional column is
-   filled in (the name exactly as the fingerprint device prints it),
-   otherwise their full name. Rows that match nobody on the viewer's team
-   are ignored; for Admin they're listed under the dashboard so a
-   misspelled name can be fixed. */
+   A fingerprint row is matched to a person by its `engineerId` (the same
+   number as Users.EngineerID — exact, no spelling to get wrong), and only
+   when the row has none by NAME: Users.AttendanceName if that optional
+   column is filled in (the name exactly as the fingerprint device prints
+   it), otherwise their full name. Rows that match nobody on the viewer's
+   team are ignored; for Admin they're listed under the dashboard so a
+   missing EngineerID / misspelled name can be fixed.
+
+   THE ATTENDANCE BACKEND IS SLOW (measured: 25-36 s to answer with a
+   ~1 KB payload), so this screen never waits on it to draw: the team's
+   regions and people are drawn immediately from the Org Chart, the
+   fingerprints fill in when they arrive, and the next refresh is
+   scheduled only after the previous one finished (a fixed 30 s interval
+   used to start a new request while the last was still running). */
 MKNexus.AttendanceModule = (function () {
   let containerEl = null;
   let dateInput, totalCountEl, inCountEl, outCountEl, userBadgeEl, departmentsBoxEl, unmatchedBoxEl;
   let barChart = null;
   let pieChart = null;
   let refreshTimer = null;
+  let statusEl, chartsGridEl;
 
   // Built from the Org Chart on every mount (see applyScope()).
   let groups = []; // [{ key, title, subtitle, members: [teamMember] }] — one per region
   let allMembers = [];
+  let memberById = new Map(); // engineerId (string) -> teamMember
   let memberByName = new Map(); // normalized fingerprint name -> teamMember
   let mountId = 0;
+  let requestSeq = 0; // a response older than the latest request is ignored
+  let hasData = false; // fingerprints for the selected date have arrived at least once
 
   /* -------------------------------------------------------------------
      Utilities — escapeHtml/prefersReducedMotion/animateIn now live in
@@ -89,12 +101,19 @@ MKNexus.AttendanceModule = (function () {
     }
 
     allMembers = groups.flatMap((g) => g.members);
+    memberById = new Map();
     memberByName = new Map();
     allMembers.forEach((member) => {
+      const engineerId = String(member.engineerId ?? '').trim();
+      if (engineerId && !memberById.has(engineerId)) memberById.set(engineerId, member);
       [member.attendanceName, member.name].map(normalizeName).filter(Boolean).forEach((key) => {
         if (!memberByName.has(key)) memberByName.set(key, member);
       });
     });
+  }
+
+  function findMember(row) {
+    return memberById.get(String(row.engineerId ?? '').trim()) || memberByName.get(normalizeName(row.name));
   }
 
   const prefersReducedMotion = MKNexus.Utils.prefersReducedMotion;
@@ -120,13 +139,15 @@ MKNexus.AttendanceModule = (function () {
           <input type="date" class="attendance-date-input" id="attDatePicker">
         </div>
 
+        <div class="attendance-status" id="attStatus" hidden></div>
+
         <div class="attendance-kpi-strip">
           <div class="attendance-kpi"><span class="attendance-kpi__icon"><i class="fa-solid fa-users"></i></span><span class="attendance-kpi__label">إجمالي المهندسين</span><span class="attendance-kpi__value" id="attTotalCount">0</span></div>
           <div class="attendance-kpi"><span class="attendance-kpi__icon attendance-kpi__icon--success"><i class="fa-solid fa-user-check"></i></span><span class="attendance-kpi__label">حضر</span><span class="attendance-kpi__value attendance-kpi__value--success" id="attInCount">0</span></div>
           <div class="attendance-kpi"><span class="attendance-kpi__icon attendance-kpi__icon--danger"><i class="fa-solid fa-user-xmark"></i></span><span class="attendance-kpi__label">غاب</span><span class="attendance-kpi__value attendance-kpi__value--danger" id="attOutCount">0</span></div>
         </div>
 
-        <div class="attendance-charts-grid">
+        <div class="attendance-charts-grid" id="attChartsGrid" hidden>
           <div class="attendance-card attendance-chart-card"><canvas id="attDeptChart"></canvas></div>
           <div class="attendance-card attendance-chart-card"><canvas id="attPieChart"></canvas></div>
         </div>
@@ -270,27 +291,62 @@ MKNexus.AttendanceModule = (function () {
     });
   }
 
+  function emptyStats() {
+    return new Map(groups.map((g) => [g.key, { inById: new Map(), outById: new Map() }]));
+  }
+
+  function setStatus(text, isError) {
+    statusEl.hidden = !text;
+    statusEl.textContent = text || '';
+    statusEl.classList.toggle('attendance-status--error', Boolean(isError));
+  }
+
+  // Draws the team (regions + people, everyone still "absent") without any
+  // fingerprint data — what the screen shows while the slow attendance
+  // backend is still answering, instead of a blank page of zeros.
+  function showStructure() {
+    hasData = false;
+    totalCountEl.textContent = String(allMembers.length);
+    inCountEl.textContent = '…';
+    outCountEl.textContent = '…';
+    chartsGridEl.hidden = true;
+    renderGroups(emptyStats());
+    renderUnmatched([]);
+  }
+
+  function scheduleNext() {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(loadDashboard, MKNexus.AttendanceConfig.refreshMs);
+  }
+
   function loadDashboard() {
     const date = dateInput.value;
+    const seq = ++requestSeq;
+    const stillCurrent = () => seq === requestSeq && Boolean(containerEl);
+    window.clearTimeout(refreshTimer);
     const kpiStrip = containerEl?.querySelector('.attendance-kpi-strip');
     kpiStrip?.classList.add('is-loading');
+    // Only the very first load of a date is worth announcing — background
+    // refreshes update the screen silently.
+    if (!hasData) setStatus('جاري تحميل البصمات… خادم الحضور بطيء وممكن ياخد لحد دقيقة.');
     // `region` is always 'ALL' now: which people you see is decided by the
     // Org Chart (applyScope), not by a region string handed to the backend.
     MKNexus.AttendanceApi.getAttendance({ role: getUserRole(), region: 'ALL', date })
       .then((rows) => {
-        if (!Array.isArray(rows) || !containerEl) return;
+        if (!stillCurrent()) return;
+        if (!Array.isArray(rows)) { setStatus('رد غير متوقع من خادم الحضور.', true); return; }
 
         // Per region: who scanned IN / OUT today, keyed by user. Only the
         // first IN/OUT scan of the day is kept per person — a duplicate
         // scan used to inflate the row lists without inflating the counts,
         // so the two disagreed whenever someone scanned twice.
-        const stats = new Map(groups.map((g) => [g.key, { inById: new Map(), outById: new Map() }]));
+        const stats = emptyStats();
         const groupOf = new Map();
         groups.forEach((g) => g.members.forEach((m) => groupOf.set(m.userId, g.key)));
         const unmatched = new Set();
 
         rows.forEach((r) => {
-          const member = memberByName.get(normalizeName(r.name));
+          const member = findMember(r);
           if (!member) { if (r.name) unmatched.add(String(r.name).trim()); return; }
           const stat = stats.get(groupOf.get(member.userId));
           const status = (r.status || r.Action || '').trim().toUpperCase();
@@ -301,22 +357,30 @@ MKNexus.AttendanceModule = (function () {
         const total = allMembers.length;
         const presentCount = [...stats.values()].reduce((sum, st) => sum + st.inById.size, 0);
 
+        hasData = true;
+        setStatus('');
         totalCountEl.textContent = String(total);
         inCountEl.textContent = String(presentCount);
         outCountEl.textContent = String(total - presentCount);
 
+        chartsGridEl.hidden = false;
         renderGroups(stats);
         renderUnmatched([...unmatched].sort());
         drawCharts(stats, presentCount, total);
       })
       .catch((error) => {
-        // Auto-refreshes every 30s, so a full-dashboard error state would
-        // flicker distractingly on every transient failure — a toast is
-        // enough to tell the user the numbers on screen may be stale
-        // without replacing the dashboard they're currently reading.
+        if (!stillCurrent()) return;
+        // Auto-retries after refreshMs, so keep whatever is on screen and
+        // just say what happened — a full error page would flicker on every
+        // transient failure.
+        setStatus(`تعذر تحميل البصمات (${error?.message || 'خطأ غير معروف'}) — هتتعاد المحاولة تلقائياً.`, true);
         MKNexus.Toast?.error(error?.message || 'Couldn\u2019t refresh attendance data — showing the last known values.');
       })
-      .finally(() => kpiStrip?.classList.remove('is-loading'));
+      .finally(() => {
+        if (!stillCurrent()) return;
+        kpiStrip?.classList.remove('is-loading');
+        scheduleNext(); // after this one finished, never while it is still running
+      });
   }
 
   /* -------------------------------------------------------------------
@@ -330,6 +394,8 @@ MKNexus.AttendanceModule = (function () {
     userBadgeEl = document.getElementById('attUserBadge');
     departmentsBoxEl = document.getElementById('attDepartmentsBox');
     unmatchedBoxEl = document.getElementById('attUnmatchedBox');
+    statusEl = document.getElementById('attStatus');
+    chartsGridEl = document.getElementById('attChartsGrid');
   }
 
   function mount(container) {
@@ -343,7 +409,9 @@ MKNexus.AttendanceModule = (function () {
     userBadgeEl.textContent = profile?.name ? `${profile.name} • ${position || profile.role || ''}` : '';
 
     dateInput.value = new Date().toLocaleDateString('en-CA');
-    dateInput.addEventListener('change', loadDashboard);
+    // Another date = another set of fingerprints: back to the bare team
+    // until they arrive, so yesterday's scans are never shown as today's.
+    dateInput.addEventListener('change', () => { showStructure(); loadDashboard(); });
 
     if (typeof gsap !== 'undefined' && !prefersReducedMotion()) {
       gsap.fromTo([containerEl.querySelector('.attendance-module__header'), containerEl.querySelector('.attendance-datebar')],
@@ -357,19 +425,20 @@ MKNexus.AttendanceModule = (function () {
     MKNexus.TeamDirectory.ensureLoaded().then(() => {
       if (thisMount !== mountId || !containerEl) return;
       applyScope();
+      showStructure();
+      // loadDashboard() re-arms its own timer when it finishes (see
+      // scheduleNext); unmount() below clears it — the router detaches this
+      // module's DOM on navigate, so an orphaned timer would keep firing.
       loadDashboard();
-      // The router detaches this module's DOM on navigate but never called
-      // clearInterval here in an earlier draft — that's the exact "orphaned
-      // timer" bug class fixed in editor.js/geo-module.js's keydown
-      // listeners; guarding it in unmount() below instead.
-      refreshTimer = window.setInterval(loadDashboard, MKNexus.AttendanceConfig.refreshMs);
     });
   }
 
   function unmount(container) {
     mountId++; // invalidates a mount() still waiting on the Org Chart scope
+    requestSeq++; // ...and a fingerprint request still in flight
     containerEl = null;
-    if (refreshTimer) { window.clearInterval(refreshTimer); refreshTimer = null; }
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
     if (barChart) { barChart.destroy(); barChart = null; }
     if (pieChart) { pieChart.destroy(); pieChart = null; }
     container.innerHTML = '';

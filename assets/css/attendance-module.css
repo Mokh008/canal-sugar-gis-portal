@@ -176,6 +176,10 @@
 /* Region's administration, shown beside the region name on each card */
 .attendance-dept-card__sub { margin-inline-start: 8px; color: var(--text-muted); font-size: 11.5px; font-weight: 500; }
 
+/* Loading / error line above the KPIs (the attendance backend is slow) */
+.attendance-status { padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); font-size: 12.5px; }
+.attendance-status--error { color: var(--danger-text); background: var(--danger-soft); border-color: rgba(224, 122, 106, 0.35); }
+
 /* Shown when the viewer's Org Chart team is empty */
 .attendance-empty-state { grid-column: 1 / -1; text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13.5px; }
 
