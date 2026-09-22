@@ -92,21 +92,46 @@ function findOrgPositions_(userId, idx) {
 }
 
 /**
- * The small summary stamped onto the session at login (auth.gs): the
- * caller's positions and whether they manage anyone. Lets the frontend
- * decide which tabs/modules to show without a second round trip; the
- * actual team list is fetched separately, fresh, via getMyScope.
- * Never throws — a broken Org sheet must not be able to block a login.
+ * The one thing stamped onto the session at login (auth.gs): whether this
+ * account manages anyone. Lets the frontend decide which sidebar modules
+ * to show (Attendance; the Rent/Expenses Report tab) without waiting on a
+ * second round trip.
+ *
+ * CRITICAL: this reads Org_Assignments and NOTHING else. It used to call
+ * the same loadOrgIndex_()/findOrgPositions_() pair getMyScope uses to
+ * ALSO build human-readable `positions` (sector/administration/region
+ * names, joined into a display path) — which meant every login did five
+ * full-sheet reads (Org_Sectors, Org_Administrations, Org_Regions,
+ * Org_Assignments, and — pure waste — Users a second time, already read
+ * once by handleLogin_ just above) before the login response could go
+ * out. That is squarely inside a request the client aborts after 15s
+ * (assets/js/api/config.js's timeoutMs), and is the prime suspect for
+ * login timeouts reported after this feature shipped — Apps Script's
+ * per-sheet read latency plus mobile-network RTT adds up fast across
+ * five reads that were never actually login-critical.
+ *
+ * `positions` (the display list with names) is no longer computed here.
+ * It never gated anything — every consumer (Attendance's header badge,
+ * Settings' Profile tab) already has a graceful "—" fallback — and it is
+ * available with zero extra cost from getMyScope's own `positions` field
+ * once TeamDirectory.ensureLoaded() resolves (core/data/team-directory.js),
+ * which Attendance already awaits before rendering. Settings' Profile tab
+ * now awaits the same thing instead of reading session.profile.positions.
+ *
+ * Never throws — a broken Org_Assignments sheet must not be able to block
+ * a login; treated as "manages nothing" instead.
  * @param {string} userId
  * @returns {{managesTeam: boolean, positions: Array<Object>}}
  */
 function getLoginOrgInfo_(userId) {
   try {
-    const found = findOrgPositions_(userId, loadOrgIndex_());
-    return {
-      managesTeam: found.sectorIds.length + found.administrationIds.length > 0,
-      positions: found.positions
-    };
+    const managesTeam = readOrgAssignments_().some(a =>
+      String(a.UserID) === String(userId) &&
+      (a.Level === CONFIG.ORG_LEVELS.SECTOR || a.Level === CONFIG.ORG_LEVELS.ADMINISTRATION));
+    // `positions: []` kept in the shape (not dropped) so a frontend build
+    // that still reads session.profile.positions before this deploy lands
+    // gets an empty list rather than `undefined`.
+    return { managesTeam: managesTeam, positions: [] };
   } catch (err) {
     logError_('Org info lookup failed at login for user ' + userId, { message: err && err.message });
     return { managesTeam: false, positions: [] };

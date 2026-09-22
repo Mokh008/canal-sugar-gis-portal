@@ -43,6 +43,13 @@ MKNexus.ApiConfig = Object.freeze({
     'createUser', 'updateUser', 'deleteUser', 'activateUser', 'deactivateUser', 'assignRole', 'changePassword',
     'updateSettings', 'uploadAvatar',
   ]),
-  timeoutMs: 15000,
+  // Was 15000 — raised after a reported login timeout ("Backend request
+  // timed out.", the login screen's own error banner) on mobile data.
+  // getLoginOrgInfo_ (backend/mk-nexus-core/directory.gs) has since been
+  // cut from 5 sheet reads to 1, which was the likely main cause, but
+  // Apps Script web apps still have real cold-start latency independent
+  // of that — this is headroom against a slow network + a cold start
+  // landing on the same request, not a fix for a specific slow handler.
+  timeoutMs: 30000,
   sessionStorageKey: 'mknexus_session_token',
 });

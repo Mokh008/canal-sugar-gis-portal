@@ -405,8 +405,7 @@ MKNexus.AttendanceModule = (function () {
     const thisMount = ++mountId;
 
     const profile = MKNexus.SessionData?.profile;
-    const position = profile?.positions?.[0]?.path;
-    userBadgeEl.textContent = profile?.name ? `${profile.name} • ${position || profile.role || ''}` : '';
+    userBadgeEl.textContent = profile?.name ? `${profile.name} • ${profile.role || ''}` : '';
 
     dateInput.value = new Date().toLocaleDateString('en-CA');
     // Another date = another set of fingerprints: back to the bare team
@@ -424,6 +423,12 @@ MKNexus.AttendanceModule = (function () {
     // re-opened this module) while the Org Chart scope was loading.
     MKNexus.TeamDirectory.ensureLoaded().then(() => {
       if (thisMount !== mountId || !containerEl) return;
+      // Position path (e.g. "Traditional › Bni-Suif") — no longer on the
+      // session profile (see backend/mk-nexus-core/directory.gs's
+      // getLoginOrgInfo_: dropped from login to cut its sheet-read cost),
+      // but free here since getMyScope already computed it.
+      const position = MKNexus.TeamDirectory.getScope().positions?.[0]?.path;
+      if (position) userBadgeEl.textContent = `${profile?.name || ''} • ${position}`;
       applyScope();
       showStructure();
       // loadDashboard() re-arms its own timer when it finishes (see

@@ -242,7 +242,18 @@ MKNexus.SettingsModule = (function () {
     document.getElementById('settingsProfileUsername').textContent = p.username || '—';
     document.getElementById('settingsProfileEmail').textContent = p.email || '—';
     document.getElementById('settingsProfileEngineerId').textContent = p.engineerId || '—';
-    document.getElementById('settingsProfilePosition').textContent = positionsText(p.positions) || '—';
+    // No longer on the session profile (see backend/mk-nexus-core/
+    // directory.gs's getLoginOrgInfo_: dropped from login to cut its
+    // sheet-read cost) — shows "—" immediately, then fills in from
+    // getMyScope (already fetched for Attendance/Rent/Expenses, or fetched
+    // fresh here) once TeamDirectory.ensureLoaded() resolves. Guarded
+    // against the tab having been navigated away from by the time it does.
+    const positionEl = document.getElementById('settingsProfilePosition');
+    positionEl.textContent = '—';
+    MKNexus.TeamDirectory.ensureLoaded().then(() => {
+      const stillHere = document.getElementById('settingsProfilePosition');
+      if (stillHere) stillHere.textContent = positionsText(MKNexus.TeamDirectory.getScope().positions) || '—';
+    });
   }
 
   // Reads the chosen file, downscales it on a <canvas> (max 300px on the

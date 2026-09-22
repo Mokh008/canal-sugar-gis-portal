@@ -114,12 +114,21 @@ function handleLogin_(context) {
     engineerId: user.EngineerID ? String(user.EngineerID).trim() : '',
     // Org Chart placement, NOT read from the Users sheet (which stays
     // purely descriptive) — looked up from Org_Assignments (see
-    // directory.gs's getLoginOrgInfo_). `managesTeam` is what unlocks the
-    // Report tabs in Rent/Expenses and the Attendance module for someone
-    // who is an administration manager / sector head; `positions` is what
-    // the Settings profile shows. Replaces the old Users.SectorID field
-    // (`sectorId`) this response used to carry.
+    // directory.gs's getLoginOrgInfo_, one cheap read). `managesTeam` is
+    // what unlocks the Report tabs in Rent/Expenses and the Attendance
+    // module for someone who is an administration manager / sector head.
+    // Replaces the old Users.SectorID field (`sectorId`) this response
+    // used to carry.
     managesTeam: orgInfo.managesTeam,
+    // Always empty now — kept in the response shape, not the value.
+    // Human-readable positions (sector/administration/region names) used
+    // to be computed here too, at the cost of four more full-sheet reads
+    // on every single login; nothing actually needed them at login time
+    // (Attendance's header badge and Settings' Profile tab both already
+    // tolerate blank). They're available for free, already computed, from
+    // getMyScope's own `positions` field once TeamDirectory.ensureLoaded()
+    // resolves (core/data/team-directory.js) — see that file and
+    // directory.gs's getLoginOrgInfo_ for the full reasoning.
     positions: orgInfo.positions,
     // NEW: profile photo, set via avatar.gs's handleUploadAvatar_
     // (Settings module). Empty until someone uploads one — the frontend
