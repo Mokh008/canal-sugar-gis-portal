@@ -136,6 +136,23 @@
    7. RESPONSIVE
 --------------------------------------------------------------------- */
 @media (max-width: 900px) {
-  .orgchart-columns { grid-template-columns: 1fr; }
-  .orgchart-column { min-height: 220px; }
+  /* The module is a fixed-height flex column; its children (the columns
+     have overflow: hidden, so they may shrink below their content) were
+     being squashed and painted over each other on a phone. Let each
+     block keep its natural height and let the module itself scroll. */
+  .orgchart-module > * { flex-shrink: 0; }
+  .orgchart-columns { grid-template-columns: 1fr; flex: 0 0 auto; min-height: 0; }
+  .orgchart-column { min-height: 0; }
+  .orgchart-column__list { max-height: 260px; }
+
+  /* "Add" row: a 220px-wide select + button ran off a 360px screen. */
+  .orgchart-members__assign { width: 100%; }
+  .orgchart-members__assign select { min-width: 0; flex: 1 1 auto; width: 100%; }
+  .orgchart-members__assign .btn { width: auto; flex-shrink: 0; } /* style.css makes every .btn full-width under 560px */
+
+  /* Member / "Everyone" rows: put the position chips under the name
+     instead of squeezing the name into a one-word-per-line column. */
+  .orgchart-member-row { flex-wrap: wrap; }
+  .orgchart-people__positions { width: 100%; justify-content: flex-start; }
+  .orgchart-chip { white-space: normal; }
 }

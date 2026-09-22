@@ -3,6 +3,7 @@ window.MKNexus = window.MKNexus || {};
 
 MKNexus.Sidebar = (function () {
   let navEl = null;
+  let closeIfMobileFn = () => {};
 
   function render() {
     navEl = document.getElementById('shellSidebarNav');
@@ -22,7 +23,10 @@ MKNexus.Sidebar = (function () {
         <i class="${mod.icon} shell-nav-item__icon"></i>
         <span class="shell-nav-item__label">${mod.label}</span>
       `;
-      btn.addEventListener('click', () => MKNexus.Router.navigate(mod.id));
+      btn.addEventListener('click', () => {
+        MKNexus.Router.navigate(mod.id);
+        closeIfMobileFn(); // on a phone the menu is an overlay — picking a module should reveal it
+      });
       navEl.appendChild(btn);
     });
   }
@@ -37,6 +41,7 @@ MKNexus.Sidebar = (function () {
     const collapseBtn = document.getElementById('shellCollapseBtn');
     const sidebar = document.getElementById('shellSidebar');
     const backdrop = document.getElementById('shellSidebarBackdrop');
+    const menuBtn = document.getElementById('shellMenuBtn');
     const mobileQuery = window.matchMedia('(max-width: 900px)');
 
     // On a narrow viewport the sidebar renders as a fixed overlay (see
@@ -52,11 +57,17 @@ MKNexus.Sidebar = (function () {
       sidebar.classList.toggle('is-collapsed', collapsed);
       collapseBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
       collapseBtn.querySelector('i').className = collapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left';
+      menuBtn?.setAttribute('aria-expanded', String(!collapsed));
+      menuBtn?.setAttribute('aria-label', collapsed ? 'Open menu' : 'Close menu');
       syncBackdrop();
     }
 
+    closeIfMobileFn = () => { if (mobileQuery.matches) setCollapsed(true); };
+
     collapseBtn?.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('is-collapsed')));
+    menuBtn?.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('is-collapsed')));
     backdrop?.addEventListener('click', () => setCollapsed(true));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeIfMobileFn(); });
     mobileQuery.addEventListener('change', syncBackdrop);
     syncBackdrop();
   }

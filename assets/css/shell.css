@@ -359,9 +359,53 @@
 .module-stub__eyebrow { color: var(--accent); }
 .module-stub__desc { max-width: 420px; }
 
+/* ---- Phone / small tablet (<= 900px) ------------------------------------
+   The sidebar is an off-screen drawer here, opened by the header's menu
+   button (#shellMenuBtn, see core/ui/sidebar.js). Before, its "collapsed"
+   state was the 76px desktop icon rail pinned over the LEFT of the screen
+   (position: fixed), which on a 360px phone covered a fifth of every
+   module and clipped the header underneath it, with nothing on screen
+   that could open or close it.
+   Hidden with `left`, not `transform`: GSAP (ui/shell.js's reveal) leaves
+   an inline `transform` on #shellSidebar that would override a CSS one. */
+.shell-menu-btn { display: none; flex-shrink: 0; }
+
 @media (max-width: 900px) {
-  .shell-sidebar { position: fixed; z-index: var(--z-overlay); height: 100%; width: 250px; }
+  .shell-sidebar {
+    position: fixed; top: 0; left: 0; z-index: var(--z-overlay); height: 100%; width: 250px;
+    transition: left var(--duration-base) var(--ease-premium), visibility 0s;
+  }
+  .shell-sidebar.is-collapsed {
+    width: 250px;
+    left: -270px;
+    visibility: hidden;
+    transition: left var(--duration-base) var(--ease-premium), visibility 0s linear var(--duration-base);
+  }
+  .shell-sidebar__brand { height: 56px; }
   .shell-search { display: none; }
+
+  .shell-menu-btn { display: flex; }
+
+  .shell-header {
+    min-height: 56px;
+    height: 56px;
+    gap: 8px;
+    padding: 0 12px;
+  }
+  .shell-breadcrumb { flex: 1 1 auto; min-width: 0; overflow: hidden; letter-spacing: 0.1em; }
+  .shell-breadcrumb__current { overflow: hidden; text-overflow: ellipsis; }
+  .shell-header__actions { gap: 6px; }
+  .shell-icon-btn { width: 36px; height: 36px; }
+
+  /* 24px of padding on each side is a quarter of a 360px screen. */
+  .shell-content { padding: 12px; }
+}
+
+/* Narrow phones: the header only has room for the current module's name. */
+@media (max-width: 560px) {
+  .shell-breadcrumb__company,
+  .shell-breadcrumb__sep { display: none; }
+  .shell-profile__trigger { padding: 4px 8px 4px 4px; }
 }
 
 /* Mobile sidebar backdrop — shown only when the sidebar is expanded on a

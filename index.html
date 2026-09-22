@@ -32,7 +32,7 @@
   <link rel="stylesheet" href="assets/css/expenses-module.css?v=3">
   <link rel="stylesheet" href="assets/css/attendance-module.css?v=4">
   <link rel="stylesheet" href="assets/css/settings-module.css?v=2">
-  <link rel="stylesheet" href="assets/css/org-chart-module.css?v=2">
+  <link rel="stylesheet" href="assets/css/org-chart-module.css?v=5">
   <!-- overrides.css removed: its ~18 hardcoded-color patch rules were
        folded back into tokens.css/shell.css/style.css using design
        tokens (see those files' history) — nothing here needs a
@@ -276,6 +276,11 @@
       <!-- Main column: header + content -->
       <div class="shell-main">
         <header id="shellHeader" class="shell-header">
+          <!-- Phone/tablet only (shell.css): the sidebar is off-screen there, this opens it. -->
+          <button id="shellMenuBtn" class="shell-icon-btn shell-menu-btn" type="button" aria-label="Open menu" aria-controls="shellSidebar" aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+
           <div class="shell-breadcrumb">
             <span class="shell-breadcrumb__company" id="shellBreadcrumbCompany">Canal Sugar</span>
             <span class="shell-breadcrumb__sep">/</span>
