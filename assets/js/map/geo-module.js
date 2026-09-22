@@ -72,6 +72,15 @@ MKNexus.GeoModule = (function () {
       <div class="geo-map-status"><span id="geoMapStatus">SATELLITE SIMULATION</span><span class="geo-map-status__sep">/</span><span id="geoCoordReadout">28.1099&deg; N 30.7503&deg; E</span></div>
 
       <div class="geo-command-actions" aria-label="Map presentation controls">
+        <!-- Phone/small-tablet only (geo-experience.css) — the GIS Editor
+             toolbar/boundary list are always-on power tools that, at that
+             width, would otherwise permanently bury the map and this very
+             rail under themselves (confirmed live: three independently
+             floating panels with no shared layout, stacking on top of one
+             another). Hidden by default there; this reveals them as one
+             more full-width band under the KPI deck instead of a fourth
+             floating overlay. See setGisToolsOpen()/.is-gis-tools-open below. -->
+        <button class="geo-command-btn geo-command-btn--gis-toggle" id="geoGisToolsBtn" type="button" title="Show/hide GIS editor tools" aria-pressed="false"><i class="fa-solid fa-pen-ruler"></i><span>Editor tools</span></button>
         <button class="geo-command-btn" id="geoResetBtn" type="button" title="Reset camera"><i class="fa-solid fa-crosshairs"></i><span>Reset view</span></button>
         <button class="geo-command-btn" id="geoStoryBtn" type="button" title="Play executive story"><i class="fa-solid fa-layer-group"></i><span>Story mode</span></button>
         <button class="geo-command-btn" id="geoPresentationBtn" type="button" title="Toggle presentation mode"><i class="fa-solid fa-house"></i><span>Presentation</span></button>
@@ -293,6 +302,17 @@ MKNexus.GeoModule = (function () {
     mapContainerEl?.classList.toggle('is-presentation', active);
   }
 
+  // Phone/small-tablet only — see the toggle button's comment above.
+  // Irrelevant above that width (the CSS that hides the GIS editor by
+  // default only applies there), so toggling it on desktop is harmless
+  // but inert.
+  function setGisToolsOpen(active) {
+    mapContainerEl?.classList.toggle('is-gis-tools-open', active);
+    const btn = mapContainerEl?.querySelector('#geoGisToolsBtn');
+    btn?.classList.toggle('is-active', active);
+    btn?.setAttribute('aria-pressed', String(active));
+  }
+
   function bindPresentationKeys() {
     if (presentationBound) return;
     presentationBound = true;
@@ -323,6 +343,7 @@ MKNexus.GeoModule = (function () {
       MKNexus.Camera.reset();
       MKNexus.GeoState.goToOverview();
     });
+    mapContainerEl.querySelector('#geoGisToolsBtn').addEventListener('click', () => setGisToolsOpen(!mapContainerEl.classList.contains('is-gis-tools-open')));
     mapContainerEl.querySelector('#geoPresentationBtn').addEventListener('click', () => setPresentation(!mapContainerEl.classList.contains('is-presentation')));
     mapContainerEl.querySelector('#geoPresentationExit').addEventListener('click', () => setPresentation(false));
     mapContainerEl.querySelector('#geoZoomInBtn').addEventListener('click', () => MKNexus.MapEngine.getMap()?.zoomIn({ duration: 400 }));

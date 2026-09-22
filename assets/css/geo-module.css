@@ -277,22 +277,23 @@
    inline the moment a panel is moved or resized, and inline styles always
    win over these, on any breakpoint. */
 @media (max-width: 900px) {
-  /* The map no longer insets by --geo-right-rail at all (see the BUG FIX
-     above .geo-module__map) — this custom property now only sizes the
-     docked toolbar/panel width below, nothing about the map itself. */
-  .geo-module { --geo-right-rail: 190px; }
-  .gis-editor__toolbar { top: 158px; right: 12px; width: 166px; height: 42vh; }
-  .gis-editor__panel { top: calc(158px + 42vh + 12px); right: 12px; width: 166px; height: 30vh; }
-  .gis-editor__status { top: 12px; right: 190px; width: min(280px, calc(100% - 214px)); }
-}
+  /* Phone/small-tablet: hidden by default (see geo-experience.css's
+     command-actions "Editor tools" button, which toggles
+     .is-gis-tools-open) instead of permanently floating over the map and
+     colliding with the KPI deck / command-actions rail — see that file's
+     header comment on the 900px band layout this is part of. `!important`
+     only overrides the base rule's implicit `display: block`; every
+     geometry rule below still applies once opened. */
+  .gis-editor { display: none !important; }
+  .geo-module.is-gis-tools-open .gis-editor { display: block !important; }
 
-@media (max-width: 620px) {
-  /* The panel moves to a full-width dock at the bottom here, so it no
-     longer eats into the right edge at all — only the toolbar still
-     does, at 148px + margins. */
-  .geo-module { --geo-right-rail: 170px; }
-  .gis-editor__toolbar { top: auto; right: 10px; bottom: 220px; width: 148px; height: 200px; }
-  .gis-editor__toolbar-title { display: none; }
-  .gis-editor__panel { top: auto; right: 10px; bottom: 12px; width: calc(100% - 20px); height: 200px; }
-  .gis-editor__status { top: 12px; left: 12px; right: 12px; width: auto; }
+  /* Opened: toolbar then boundary list, stacked as their own full-width
+     band directly under the KPI deck (which shrinks to 36vh for exactly
+     this — see .is-gis-tools-open .geo-command-deck in geo-experience.css)
+     — never the deck, this band, and the bottom action bar all wanting
+     the same space at once. `overflow: auto` from the base rule (shared
+     with the desktop layout) scrolls whatever doesn't fit at these
+     heights rather than needing to fit every button exactly. */
+  .gis-editor__toolbar { top: calc(36vh + 20px); left: 10px; right: 10px; width: auto; height: 20vh; }
+  .gis-editor__panel { top: calc(36vh + 20vh + 30px); left: 10px; right: 10px; width: auto; bottom: 66px; }
 }

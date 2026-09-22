@@ -366,6 +366,21 @@
 .geo-command-btn:active { transform: translateY(0) scale(0.94); }
 .geo-command-btn.is-playing i { animation: spin 1.4s linear infinite; }
 
+/* Static "on" state — the GIS-tools toggle (phone-only, see below) uses
+   this instead of .is-playing (that one also spins the icon, meant for
+   the story button's one-shot animation, not a persistent toggle). */
+.geo-command-btn.is-active {
+  color: var(--text-primary);
+  border-color: rgba(82, 201, 155, 0.4);
+  background: var(--button-hover-bg);
+}
+
+/* Only meaningful at <= 900px (see the media query below, and the
+   .gis-editor display:none it pairs with in geo-module.css) — desktop
+   always shows the GIS Editor toolbar/panel, so there is nothing for this
+   button to toggle there. */
+.geo-command-btn--gis-toggle { display: none; }
+
 /* ---- Map status readout (bottom-right) ---------------------------------- */
 .geo-map-status {
   position: absolute;
@@ -599,16 +614,83 @@
   .geo-command-deck { width: min(300px, calc(100% - 320px)); }
 }
 
+/* ---- Phone / small tablet (<= 900px) -------------------------------------
+   Three independently floating pieces used to share this space with no
+   coordination at all: this deck (top-left), the command-actions rail
+   (top-right, vertical), and the GIS Editor toolbar + boundary list
+   (right edge, see geo-module.css) — each sized/positioned only with
+   desktop room in mind. Below that width they landed stacked on top of
+   one another (confirmed live: the command-actions rail sat directly
+   over the GIS Editor toolbar, both over the deck), burying the map and
+   most of the KPI content under a pile of overlapping glass panels.
+
+   Rebuilt as clearly separated horizontal bands instead, top to bottom:
+     1. KPI deck (this section)
+     2. GIS Editor toolbar + boundary list — hidden by default here (see
+        geo-module.css's .gis-editor / .is-gis-tools-open); a phone isn't
+        where boundary polygons get drawn, and hiding an always-on power
+        tool by default is what actually leaves room for the map. The new
+        "Editor tools" button below reveals it as a third band when an
+        Admin does need it.
+     3. A single bottom bar: the command-actions rail, turned horizontal
+        and centered — replaces the old top-right floating rail, which
+        can no longer land on top of anything above it.
+   The map-status readout (bottom-right on desktop) is dropped here
+   rather than fitted in beside that bar — the deck's own "LIVE GEO
+   INTELLIGENCE" eyebrow (with the same pulsing dot) already carries the
+   "this is live" cue, and there is no clear, non-overlapping spot left
+   for a second element on the same bottom edge as a full-width bar.
+   ---------------------------------------------------------------------- */
 @media (max-width: 900px) {
   .geo-module__map { inset: 0; }
-  .geo-command-deck { left: 16px; top: 16px; width: min(300px, calc(100% - 32px)); max-height: calc(100% - 32px); }
-  .geo-command-actions { right: 16px; top: 16px; }
-  .geo-map-status { right: 16px; bottom: 16px; }
+
+  .geo-command-deck {
+    left: 10px;
+    top: 10px;
+    width: calc(100% - 20px);
+    /* More room when the GIS Editor band (below) is closed — the common
+       case on a phone — since nothing else needs that space then. */
+    max-height: calc(100% - 74px);
+  }
+  .geo-module.is-gis-tools-open .geo-command-deck { max-height: 36vh; }
+  .geo-command-deck__extras { flex-direction: column; }
+
+  .geo-command-actions {
+    top: auto;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    flex-direction: row;
+    /* Not `wrap`: 6 buttons wrapping to a second row makes the bar taller
+       than .geo-command-deck's reserved clearance above it, so the two
+       would overlap again — the exact bug this whole section exists to
+       avoid. Shrinking to fit (below the 380px query) keeps it one row
+       on every phone width instead. */
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px;
+  }
+  .geo-command-btn--gis-toggle { display: inline-flex; }
+  .geo-command-btn { width: 40px; height: 40px; flex-shrink: 1; }
+  .geo-command-btn i { font-size: 14px; }
+
+  .geo-map-status { display: none; }
+
+  /* Only relevant while actively drawing/editing with the GIS Editor
+     tools open (see geo-module.css) — a transient banner, so it's allowed
+     to sit over the deck's top edge (higher z-index, same as desktop)
+     rather than needing a permanently reserved band of its own. */
+  .gis-editor__status { top: 10px; left: 10px; right: 10px; width: auto; }
 }
 
-@media (max-width: 720px) {
-  .geo-command-deck { width: calc(100% - 24px); left: 12px; top: 12px; }
-  .geo-command-deck__extras { flex-direction: column; }
-  .geo-map-status { bottom: 12px; right: 12px; }
-  .geo-command-actions { top: 12px; right: 12px; }
+/* 6 buttons at 40px + 6px gaps need ~276px — doesn't clear a 320-360px
+   phone once the 20px side margins are subtracted. Shrink further rather
+   than let flex-shrink squash them unevenly (a `width` on a flex item is
+   only a hint; without an explicit smaller size here they'd compress to
+   inconsistent, harder-to-tap widths instead of shrinking uniformly). */
+@media (max-width: 380px) {
+  .geo-command-actions { gap: 4px; padding: 5px; }
+  .geo-command-btn { width: 34px; height: 34px; }
+  .geo-command-btn i { font-size: 12px; }
 }
