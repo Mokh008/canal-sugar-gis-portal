@@ -47,7 +47,7 @@ MKNexus.AttendanceModule = (function () {
   let statusEl, chartsGridEl;
 
   // Built from the Org Chart on every mount (see applyScope()).
-  let groups = []; // [{ key, title, subtitle, members: [teamMember] }] — one per region
+  let groups = []; // [{ key, title, subtitle, members: [teamMember] }] — one per administration
   let allMembers = [];
   let memberById = new Map(); // engineerId (string) -> teamMember
   let memberByName = new Map(); // normalized fingerprint name -> teamMember
@@ -84,18 +84,26 @@ MKNexus.AttendanceModule = (function () {
     return String(n || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
-  // Turns the Org Chart scope into the region groups this dashboard draws.
+  // Turns the Org Chart scope into the administration groups this dashboard
+  // draws — one card per administration (all its regions' engineers
+  // together), not one per region. Someone assigned to several regions of
+  // the same administration is listed once.
   function applyScope() {
     const scope = MKNexus.TeamDirectory.getScope();
-    const byRegion = new Map();
+    const byAdministration = new Map();
     scope.team.forEach((member) => {
-      if (!byRegion.has(member.regionId)) {
-        byRegion.set(member.regionId, { key: member.regionId, title: member.regionName, subtitle: member.administrationName, members: [] });
+      const key = member.administrationId || `region:${member.regionId}`;
+      if (!byAdministration.has(key)) {
+        byAdministration.set(key, { key, title: member.administrationName || member.regionName, subtitle: '', members: [], seen: new Set() });
       }
-      byRegion.get(member.regionId).members.push(member);
+      const group = byAdministration.get(key);
+      if (group.seen.has(member.userId)) return;
+      group.seen.add(member.userId);
+      group.members.push(member);
     });
-    groups = [...byRegion.values()].sort((a, b) =>
-      (a.subtitle || '').localeCompare(b.subtitle || '', 'ar') || (a.title || '').localeCompare(b.title || '', 'ar'));
+    groups = [...byAdministration.values()]
+      .map(({ seen, ...group }) => group)
+      .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
     if (scope.unassigned.length) {
       groups.push({ key: '__unassigned__', title: 'غير موزّعين', subtitle: 'لم يتم وضعهم في أي منطقة بعد', members: scope.unassigned });
     }
@@ -129,7 +137,7 @@ MKNexus.AttendanceModule = (function () {
           <div class="attendance-module__heading">
             <span class="type-eyebrow attendance-module__eyebrow">ATTENDANCE OPERATIONS</span>
             <h1 class="attendance-module__title">لوحة متابعة الحضور</h1>
-            <p class="attendance-module__subtitle">حضور وانصراف مهندسي فريقك حسب المنطقة، بتحديث تلقائي كل 30 ثانية</p>
+            <p class="attendance-module__subtitle">حضور وانصراف مهندسي فريقك حسب الإدارة، بتحديث تلقائي كل 30 ثانية</p>
           </div>
           <span class="attendance-module__badge" id="attUserBadge"></span>
         </div>
@@ -263,7 +271,7 @@ MKNexus.AttendanceModule = (function () {
       },
       options: {
         ...baseOpts,
-        plugins: { ...baseOpts.plugins, title: { display: true, text: 'حضور حسب المنطقة', color: '#b9c9c2', font: { size: 13 } } },
+        plugins: { ...baseOpts.plugins, title: { display: true, text: 'حضور حسب الإدارة', color: '#b9c9c2', font: { size: 13 } } },
       },
     });
 
@@ -336,7 +344,7 @@ MKNexus.AttendanceModule = (function () {
         if (!stillCurrent()) return;
         if (!Array.isArray(rows)) { setStatus('رد غير متوقع من خادم الحضور.', true); return; }
 
-        // Per region: who scanned IN / OUT today, keyed by user. Only the
+        // Per administration: who scanned IN / OUT today, keyed by user. Only the
         // first IN/OUT scan of the day is kept per person — a duplicate
         // scan used to inflate the row lists without inflating the counts,
         // so the two disagreed whenever someone scanned twice.
