@@ -167,6 +167,9 @@
   flex-shrink: 0;
 }
 .attendance-row__loc { color: var(--harvest-gold); font-size: 12px; line-height: 1.4; word-break: break-word; overflow-wrap: break-word; }
+.attendance-row__loc--link { text-decoration: none; cursor: pointer; }
+.attendance-row__loc--link:hover,
+.attendance-row__loc--link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 
 .attendance-name-chip { display: block; padding: 4px 0; color: var(--text-secondary); font-size: 13px; font-weight: 500; border-bottom: 1px dashed rgba(255, 255, 255, 0.04); }
 .attendance-name-chip:last-child { border-bottom: none; }

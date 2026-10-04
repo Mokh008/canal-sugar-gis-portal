@@ -168,14 +168,26 @@ MKNexus.AttendanceModule = (function () {
   /* -------------------------------------------------------------------
      Rendering
   ------------------------------------------------------------------- */
-  function buildAttRow(name, loc, time) {
+  // The exact spot of a fingerprint, from the sheet's Location Link column
+  // (G). Only http(s) links are trusted — the value ends up in an href.
+  function mapUrlOf(row) {
+    const link = String(row.locationLink || '').trim();
+    return /^https?:\/\//i.test(link) ? link : '';
+  }
+
+  function buildAttRow(row) {
+    const url = mapUrlOf(row);
+    const locInner = `<i class="fa-solid fa-location-dot"></i> ${escapeHtml(row.location || '')}`;
+    const loc = url
+      ? `<a class="attendance-row__loc attendance-row__loc--link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="فتح الموقع على الخريطة">${locInner}</a>`
+      : `<span class="attendance-row__loc">${locInner}</span>`;
     return `
       <div class="attendance-row">
         <div class="attendance-row__top">
-          <span class="attendance-row__name">${escapeHtml(shortName(name))}</span>
-          <span class="attendance-row__time"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatSheetTime(time))}</span>
+          <span class="attendance-row__name">${escapeHtml(shortName(row.name))}</span>
+          <span class="attendance-row__time"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatSheetTime(row.time))}</span>
         </div>
-        <span class="attendance-row__loc"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(loc || '')}</span>
+        ${loc}
       </div>`;
   }
 
@@ -197,7 +209,7 @@ MKNexus.AttendanceModule = (function () {
       const notOut = present.filter((m) => !stat.outById.has(m.userId));
       const leftMembers = group.members.filter((m) => stat.outById.has(m.userId));
 
-      const rowsOf = (list, byId) => list.map((m) => { const r = byId.get(m.userId); return buildAttRow(r.name, r.location, r.time); }).join('') || emptyRow;
+      const rowsOf = (list, byId) => list.map((m) => { return buildAttRow(byId.get(m.userId)); }).join('') || emptyRow;
       const chipsOf = (list) => list.map((m) => `<span class="attendance-name-chip">${escapeHtml(shortName(m.name))}</span>`).join('') || emptyRow;
 
       return `
