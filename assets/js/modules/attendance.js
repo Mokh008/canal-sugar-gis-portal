@@ -71,7 +71,10 @@ MKNexus.AttendanceModule = (function () {
   function formatSheetTime(t) {
     if (!t) return '';
     const d = new Date(t);
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    if (isNaN(d)) return String(t);
+    // Pin to Cairo time (incl. Egypt's summer time) instead of the viewer's
+    // PC clock — a PC with an outdated/wrong time zone showed punches 1h off.
+    return d.toLocaleTimeString('en-US', { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   }
 
   function getUserRole() {

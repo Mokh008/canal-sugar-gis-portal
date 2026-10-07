@@ -5,7 +5,7 @@ window.MKNexus = window.MKNexus || {};
    deployment with one read action. Nothing below was invented: the
    URL/action/params match that site's live source exactly. */
 MKNexus.AttendanceConfig = Object.freeze({
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbz3uMeKx0YQ4yPZeBGT3yRJNEiO8sJjD4Rk3D9ZTmw-g12yieKamCVGu2yzOvjbWO8ZdQ/exec',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbzj32cKnVJCEy-IC56uDHlpxrjvfZaHIvc3LwkiNdehRfMWwVysAAh6i5rYEo3Pi-TNsQ/exec',
   // Auto-refresh interval — matches the source site's setInterval.
   // Pause between the END of one refresh and the start of the next.
   refreshMs: 30000,
